@@ -4,7 +4,10 @@ import { ElMessage } from 'element-plus'
 const http = axios.create({ baseURL: '/api', timeout: 30000 })
 
 http.interceptors.response.use(
-  (res) => res.data,
+  (res) => {
+    if (res.data && res.data.code === 0) return res.data.data
+    return res.data
+  },
   (err) => {
     const body = err.response?.data
     if (err.response?.status === 409) {

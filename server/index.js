@@ -31,7 +31,14 @@ function createApp(db) {
   const app = express()
   app.use(express.json({ limit: '10mb' }))
   const publicDir = path.resolve(__dirname, '..', 'dist')
-  if (fs.existsSync(publicDir)) app.use(express.static(publicDir))
+  if (fs.existsSync(publicDir)) {
+    app.use(express.static(publicDir))
+    // SPA history fallback：非 /api 的 GET 回退 index.html
+    app.get(/^\/(?!api\/).*/, (req, res, next) => {
+      if (req.method !== 'GET') return next()
+      res.sendFile(path.join(publicDir, 'index.html'))
+    })
+  }
   app.use('/api', require('./routes')(db))
   app.use('/api', (req, res) => res.status(404).json({ code: 40403, message: '接口不存在' }))
   // 全局错误处理（Express 4 需四参数签名）

@@ -67,8 +67,10 @@ function makeCrud(db, { table, fields, searchFields = [], sortable = [], childre
   }
 
   function update(id, body) {
-    const version = Number(body.version)
-    if (!Number.isInteger(version)) return { changed: 0 }
+    if (typeof body.version !== 'number' || !Number.isInteger(body.version)) {
+      return { changed: 0, invalid: true }
+    }
+    const version = body.version
     const existing = get(id)
     if (!existing) return { changed: 0, exists: false }
     if (existing.deleted_at) return { changed: 0, exists: true, deleted: true, deletedAt: existing.deleted_at }

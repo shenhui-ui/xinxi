@@ -27,6 +27,7 @@ function makeCrudRouter(db, options) {
   })
   router.put('/:id', (req, res) => {
     const r = crud.update(req.params.id, req.body || {})
+    if (r.invalid) return fail(res, 40001, '缺少或非法的 version')
     if (!r.changed) {
       if (r.exists === false) return err40401(res, req.params.id)
       if (r.deleted) return err40402(res, req.params.id, r.deletedAt)
