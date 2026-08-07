@@ -10,5 +10,6 @@ module.exports = function routes(db) {
   router.use('/activities', require('./activities')(db))
   router.use('/seals', require('./seals')(db))
   router.use('/supplies', require('./supplies')(db))
+  router.use('/stats', require('./stats')(db))
   return router
 }
