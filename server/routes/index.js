@@ -5,5 +5,10 @@ module.exports = function routes(db) {
   })
   router.use('/tasks', require('./tasks')(db))
   router.use('/attachments', require('./attachments')(db))
+  router.use('/meetings', require('./meetings')(db))
+  router.use('/documents', require('./documents')(db))
+  router.use('/activities', require('./activities')(db))
+  router.use('/seals', require('./seals')(db))
+  router.use('/supplies', require('./supplies')(db))
   return router
 }

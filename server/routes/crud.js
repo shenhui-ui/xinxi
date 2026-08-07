@@ -29,7 +29,7 @@ function makeCrudRouter(db, options) {
     const r = crud.update(req.params.id, req.body || {})
     if (!r.changed) {
       if (r.exists === false) return err40401(res, req.params.id)
-      if (r.deleted) return err40402(res, req.params.id)
+      if (r.deleted) return err40402(res, req.params.id, r.deletedAt)
       return res.status(409).json({ code: 409, message: '乐观锁版本冲突' })
     }
     ok(res, r.row)
