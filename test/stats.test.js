@@ -31,6 +31,11 @@ function thisMonth() {
   return { year: now.getFullYear(), month: String(now.getMonth() + 1).padStart(2, '0') }
 }
 
+function today() {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+}
+
 const ym = () => `year=${thisMonth().year}&month=${thisMonth().month}`
 
 test('monthly 聚合各模块计数', async () => {
@@ -69,8 +74,8 @@ test('trend to 当天记录计入', async () => {
   const out = await call('GET', `/api/stats/trend?from=${year}-${month}-01&to=${year}-${month}-${String(lastDay).padStart(2, '0')}`)
   assert.equal(out.statusCode, 200)
   assert.equal(out.body.data.byModule.tasks, 1)
-  const today = new Date().toISOString().slice(0, 10)
-  assert.ok(out.body.data.days.some((d) => d.date === today), '今天应出现在 days 中')
+  const todayStr = today()
+  assert.ok(out.body.data.days.some((d) => d.date === todayStr), '今天应出现在 days 中')
 })
 
 test('软删记录不计入统计', async () => {
