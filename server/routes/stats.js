@@ -55,12 +55,13 @@ module.exports = function statsRouter(db) {
   router.get('/trend', (req, res) => {
     const { from, to } = req.query
     if (!from || !to) return res.status(400).json({ code: 40001, message: '缺少 from/to' })
+    const toEnd = to + 'T23:59:59'
     const days = {}
     const byModule = {}
     for (const [table, col] of MODULES) {
-      const count = db.prepare(`SELECT COUNT(*) c FROM ${table} WHERE deleted_at IS NULL AND ${col} >= ? AND ${col} <= ?`).get(from, to)
+      const count = db.prepare(`SELECT COUNT(*) c FROM ${table} WHERE deleted_at IS NULL AND ${col} >= ? AND ${col} < ?`).get(from, toEnd)
       byModule[table] = count.c
-      for (const row of db.prepare(`SELECT substr(${col}, 1, 10) d, COUNT(*) c FROM ${table} WHERE deleted_at IS NULL AND ${col} >= ? AND ${col} <= ? GROUP BY d`).all(from, to)) {
+      for (const row of db.prepare(`SELECT substr(${col}, 1, 10) d, COUNT(*) c FROM ${table} WHERE deleted_at IS NULL AND ${col} >= ? AND ${col} < ? GROUP BY d`).all(from, toEnd)) {
         days[row.d] = (days[row.d] || 0) + row.c
       }
     }
