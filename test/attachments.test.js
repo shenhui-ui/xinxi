@@ -70,3 +70,12 @@ test('软删后下载返回 40402', async () => {
   assert.equal(body.code, 40402)
   assert.ok(body.data.deletedAt, 'deletedAt 应随 40402 返回')
 })
+
+test('超 20MB 附件返回 400 JSON', async () => {
+  const form = new FormData()
+  form.append('file', new Blob([Buffer.alloc(20.5 * 1024 * 1024)]), 'big.bin')
+  const res = await fetch(`${base}/api/attachments`, { method: 'POST', body: form })
+  assert.equal(res.status, 400)
+  const body = await res.json()
+  assert.equal(body.code, 40001)
+})

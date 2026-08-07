@@ -42,7 +42,7 @@ module.exports = function attachmentsRouter(db) {
     } catch (e) {
       return fail(res, 500, '附件文件不存在')
     }
-    if (!fs.existsSync(absPath)) return fail(res, 404, '附件文件不存在', 404)
+    if (!fs.existsSync(absPath)) return fail(res, 40401, '附件文件不存在', 404)
     const encoded = encodeURIComponent(row.display_name)
     res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encoded}`)
     res.setHeader('Content-Type', row.mime_type)

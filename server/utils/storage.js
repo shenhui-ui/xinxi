@@ -12,7 +12,7 @@ function attachDir() {
 
 function saveUpload(file, { bizType, bizId, createdBy }) {
   const serverFileName = `${randomUUID()}_${path.basename(file.originalname || 'file')}`
-  const dest = path.join(attachDir(), serverFileName)
+  const dest = resolveAttachmentPath(serverFileName)
   fs.writeFileSync(dest, file.buffer)
   const row = {
     id: randomUUID(),

@@ -34,6 +34,14 @@ function createApp(db) {
   if (fs.existsSync(publicDir)) app.use(express.static(publicDir))
   app.use('/api', require('./routes')(db))
   app.use('/api', (req, res) => res.status(404).json({ code: 40403, message: '接口不存在' }))
+  // 全局错误处理（Express 4 需四参数签名）
+  app.use((err, req, res, next) => {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ code: 40001, message: '附件超过 20MB 限制' })
+    }
+    console.error('[WenXi] 未处理错误:', err.message)
+    res.status(500).json({ code: 500, message: '服务器内部错误' })
+  })
   return app
 }
 
