@@ -4,7 +4,7 @@ import fs from 'node:fs'
 import { initDb } from '../server/db.js'
 import { makeCrud } from '../server/db/crud.js'
 
-const TEST_DB = 'data/test.db'
+const TEST_DB = 'data/test-crud.db'
 let db, crud
 
 beforeEach(() => {
