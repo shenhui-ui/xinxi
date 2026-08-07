@@ -34,13 +34,15 @@
 wenxi/
 ├── server/                  # Node 后端（Express + better-sqlite3）
 │   ├── index.js             # 入口，构建后托管 public/ 静态资源
-│   ├── db.js                # SQLite 初始化（WAL）+ 迁移
+│   ├── config.js            # 配置读取（.env + 默认值）
+│   ├── db.js                # SQLite 初始化（WAL）+ 迁移（meta 表 schema_version）
 │   ├── crypto.js            # AES-256-GCM 密钥加解密
 │   ├── db/crud.js           # 通用 CRUD 构造器（M1 重头）
 │   ├── routes/              # REST API 路由（7 模块 + AI + 导出 + 附件）
 │   ├── ai/                  # provider.js（抽象层）+ index.js
 │   ├── skills/              # 内置 SKILL 提示词（gongwen.js / biganzi.js）
 │   ├── export/              # word.js / excel.js / cleanup.js / const.js
+│   ├── jobs/index.js        # 定时任务（附件清理每日 / 导出清理每小时，时间可注入）
 │   └── utils/docx-styles.js # docx 样式映射（读 shared/blocks.json）
 ├── src/                     # Vue 3 前端
 │   ├── router/index.js
@@ -53,13 +55,28 @@ wenxi/
 │   └── utils/block-styles.js # 前端 CSS 样式映射（读 shared/blocks.json）
 ├── shared/blocks.json       # data-block 枚举单一事实源（两端编译期引用）
 ├── build/check-blocks.mjs   # 构建期校验脚本
+├── scripts/                 # seed.js（造数）、bench.js（压测）、start.sh / start.bat
 ├── data/                    # 运行时数据（gitignore）
 │   ├── wenxi.db             # SQLite（WAL）
 │   ├── .secret              # AES 密钥文件（32 字节，gitignore，chmod 600）
+│   ├── .instance.lock        # 单实例锁（防双开写库）
 │   ├── attachments/         # 附件文件（uuid 重命名）
 │   └── exports/             # 导出文件（job 1 小时清理）
 ├── index.html / vite.config.js / package.json
 ```
+
+### 进程管理
+
+- **默认前台运行**：`npm start`（node server/index.js），日志输出到 stdout（`data/workstation.log` 同时写文件，轮转 5MB×3）
+- **单实例锁**：启动时创建 `data/.instance.lock`（写入 PID），已存在则拒绝启动并提示"服务已在运行（PID xxx）"；正常退出删除，异常退出用 PID 存活检测兜底
+- **可选守护**：README 提供 pm2（`pm2 start server/index.js --name wenxi`）与 systemd unit 示例，本地原型不强制
+- **优雅退出**：SIGINT/SIGTERM → 停止定时任务 → 关闭 DB → 删锁
+
+### 版本管理
+
+- `package.json version`（起始 1.0.0），`GET /api/health` 返回 `{ version, schemaVersion, uptime, dbOk }`
+- DB 有 `meta` 表存 `schema_version`，迁移按版本号递增执行（`server/db.js` 内 migration 数组）
+- 前端 footer 显示版本号；发布按里程碑打 tag（v0.1.0=M1…）
 
 关键决策：
 
@@ -68,6 +85,27 @@ wenxi/
 - **模型调用**：服务端统一走 OpenAI 兼容接口 `/v1/chat/completions`
 - **端口**：默认 `PORT=3000`（.env 可配）；启动 `EADDRINUSE` → 打印提示 + `listen(port+1)` 重试一次 → 再失败退出并提示手动设 PORT。日志明确打印"端口 X 被占用，已改用 Y"。不做无限递增。
 - **预留多人**：API 层预留 auth 中间件挂载点，DB 表预留 `created_by`
+
+### SQLite 并发模型与限制
+
+- 开 `journal_mode=WAL`（单写多读）；better-sqlite3 同步 API，本进程内所有写天然串行排队
+- **约束**：单进程访问（单实例锁保证）；备份拷贝 DB 前先停服务（或用 `VACUUM INTO` 快照，避免拷贝中文件不一致）
+- **已评估的风险**：本地单机场景无跨进程写竞争；未来多人版需迁移 PostgreSQL 或加连接池/队列，本期不做
+
+### 定时任务实现（server/jobs/index.js）
+
+- 启动时 `startJobs({ now })` 注册两个 setInterval，时间可注入测试
+- **附件清理**：每日 1 次（首跑延迟 10s），删除 `deleted_at` 超 7 天且无引用记录的附件物理文件
+- **导出清理**：每小时 1 次，删除 `expires_at` 超期的 exports 记录 + 物理文件
+- 每个任务独立 try/catch，失败记日志不中断进程；`stopJobs()` 供优雅退出与测试清理
+
+### 配置与进程管理
+
+- **配置文件**：`.env`（PORT、WENXI_DATA_DIR 可选）+ `.env.example`；`server/config.js` 统一读取，缺省用默认值
+- **默认前台运行**：`npm start`（node server/index.js），日志 stdout + `data/workstation.log`（5MB×3 轮转）
+- **单实例锁**：启动创建 `data/.instance.lock`（写 PID），已存在则拒绝启动并提示"服务已在运行（PID xxx）"；正常退出删除，异常退出用 PID 存活检测兜底
+- **可选守护**：README 提供 pm2 与 systemd unit 示例，本地原型不强制
+- **优雅退出**：SIGINT/SIGTERM → 停止定时任务 → 关闭 DB → 删锁
 
 ## 3. 数据模型（SQLite 表设计）
 
@@ -115,15 +153,27 @@ supply_transactions 库存流水：id, supply_id, change_type(入库/领用/报�
 - 领用校验 `current_stock >= quantity`，不足报错；流水只增不删（调整用冲销流水）
 - 流水不做乐观锁（只增不删），子操作只锁主档
 
-**attachments 附件表**：id、biz_type、biz_id、server_file_name（uuid 重命名）、display_name、file_size、mime_type、uploaded_at。**不存物理路径**，前端经 `/api/attachments/:id/download` 下载，由后端映射到 `data/attachments/`。附件记录软删；物理文件由后端定时任务（每日）清理 7 天前软删且无引用记录的附件文件。
+**attachments 附件表**：id、biz_type、biz_id、server_file_name（uuid 重命名）、display_name、file_size、mime_type、uploaded_at、created_by。**不存物理路径**，前端经 `/api/attachments/:id/download` 下载，由后端映射到 `data/attachments/`。附件记录软删；物理文件由后端定时任务（每日）清理 7 天前软删且无引用记录的附件文件。附件记录同样走软删 + version 乐观锁（删除/下载校验用），created_by 关联上传人。
 
 **ai_configs 模型配置表**：id、name、base_url、api_key_enc（BLOB，AES-256-GCM 加密）、model_name、is_active、created_at、updated_at、deleted_at、version
 
-**writings 写作文档表**：id、title、scenario（weekly|report|draft）、content_html（含 data-block 标记）、status（draft|saved|exported）、exported_at、created_at、updated_at、deleted_at、version、created_by。与台账同规格：软删 + 乐观锁 + 回收站。
+**writings 写作文档表**：id、title、scenario（weekly|report|draft）、content_html（含 data-block 标记）、status（draft|saved|exported）、exported_at、created_at、updated_at、deleted_at、version、created_by。与台账同规格：软删 + 乐观锁 + 回收站。导出记录通过 `exports.writing_id` 关联（见下）。
+
+**exports 导出记录表（导出历史追溯）**
+```
+id, job_id(异步任务, 可空), biz_type(word|excel), writing_id(关联 writings, 可空),
+  format(gbt|internal), filter_json(导出时筛选条件快照), file_id(uuid 文件名),
+  display_name, status(pending|done|failed), message(失败原因), 
+  expires_at, created_at, downloaded_at
+```
+- 每次导出（同步或异步）都写一条记录，供"导出历史"追溯：谁在何时导出了什么（单机下 created_by 记录本机操作人）
+- `GET /api/exports?bizType=&writingId=&status=` 查询历史；`GET /api/export/download/:fileId` 凭 file_id 下载（文件已过期 → `410 { code: 41001, message: "文件已过期" }`，41001 补入错误码表：`41001` 文件过期/资源已清理）
+- 记录在 `expires_at` 到期后由定时任务清理（行 + 物理文件）；导出历史默认保留 7 天（与附件清理同周期）
+- exports 表**不做软删**（审计型记录，到期物理清理）；无乐观锁（只增改状态）
 
 ### AI 配置加密与密钥
 
-- 密钥文件 `data/.secret`（gitignore），首启自动生成 32 字节随机密钥（crypto.randomBytes(32)），chmod 600
+- 密钥文件 `data/.secret`（gitignore），首启自动生成 32 字节随机密钥（crypto.randomBytes(32)），chmod 600（Windows 下 chmod 无效则依赖 NTFS 权限，README 说明）
 - 后续启动若缺失：**明确失败**并提示恢复，不静默重新生成（防密文不可解）：
   ```
   [WenXi] 错误：缺少密钥文件 data/.secret
@@ -132,6 +182,12 @@ supply_transactions 库存流水：id, supply_id, change_type(入库/领用/报�
   ```
 - 前端展示/返回只回掩码（`sk-****last4`），解密仅发生在后端调用模型时
 
+### 数据加密范围（明确）
+
+- **仅加密 `ai_configs.api_key_enc`**；业务台账数据、附件、writings 内容为明文存储
+- 理由：本地单机场景，SQLite 文件受 OS 文件系统权限保护（与 ai-workstation 同策略）；全库加密（SQLCipher）引入密钥管理与迁移复杂度，对原型价值低
+- 未来多人部署时在架构升级项中评估全库加密；README 注明"业务数据未加密，注意介质安全"
+
 ## 4. API 设计（REST 约定）
 
 ### 通用约定
@@ -139,24 +195,27 @@ supply_transactions 库存流水：id, supply_id, change_type(入库/领用/报�
 - 前缀 `/api`，JSON 统一 `{ code, data, message }`
 - 删除一律软删：`DELETE /api/xxx/:id` → 置 `deleted_at`
 - 列表接口：`?page=1&pageSize=20&keyword=&status=&type=&dateFrom=&dateTo=`，返回 `{ list, total, page, pageSize }`
-- 回收站：`GET /api/xxx?deleted=1`（排序按 `deleted_at DESC`，分页参数同普通列表），`GET /api/xxx/trash-count` 返回回收站数量
+- 回收站：`GET /api/xxx?deleted=1`（排序按 `deleted_at DESC`，分页参数同普通列表），`GET /api/xxx/trash-count` 返回 `{ count: 3 }`（侧栏角标用）
 
 ### 错误码表（完整）
 
 | code | 含义 |
 |---|---|
-| 40001 | configId 与 apiKey 二选一冲突 |
-| 40002 | 参数类型/必填错误（通用） |
+| 40001 | 参数类型/必填错误（通用） |
+| 40002 | AI 测试接口 configId 与 apiKey 均为空 |
 | 40003 | GB/T 格式需填写发文字号 |
 | 40401 | 记录不存在（无此行） |
 | 40402 | 记录已删除（deleted_at 非空） |
 | 40403 | 接口不存在 |
 | 409 | 乐观锁版本冲突 |
+| 41001 | 文件已过期/资源已清理（导出下载） |
 
 40402 响应格式：
 ```json
 { "code": 40402, "message": "记录已删除", "data": { "id": "...", "deletedAt": "2026-08-01T10:00:00+08:00" } }
 ```
+
+注意：错误码与 HTTP 状态解耦，40001/40002/40003 对应 HTTP 400，40401/40402/40403 对应 HTTP 404，409 对应 HTTP 409，41001 对应 HTTP 410。
 
 ### 乐观锁约定（强制）
 
@@ -191,20 +250,45 @@ supply_transactions 库存流水：id, supply_id, change_type(入库/领用/报�
 
 - `GET /api/ai/configs`（列表，api_key 掩码）、`POST /api/ai/configs`（增改）、`DELETE`（软删）
 - `GET /api/ai/configs/active`：取 `is_active=1` 当前配置（掩码），前端免遍历
-- `POST /api/ai/test`：**configId 与 apiKey 必须二选一**（路由层前置校验，同时传或都不传 → 40001）。传 apiKey 明文仅用于本次请求不落库；传 configId 用已存配置解密测试。响应不回显 Key，失败信息不含 Key 内容
+- `POST /api/ai/test`：**参数优先级约定——`configId` 优先**：
+  - 传 `configId` → 解密已存配置测试，忽略请求中 `apiKey`（即使也传了）
+  - 只传 `apiKey` → 明文仅本次请求使用，不落库
+  - **两者都空 → `40002` 参数错误**
+  - 响应不回显 Key，失败信息不含 Key 内容
 - `POST /api/ai/chat`（对话，SSE 流式）
-- `POST /api/ai/write`：**仅生成类场景** `scenario: weekly | report | draft`，自动附带对应 SKILL 提示词；**不含 polish**
+- `POST /api/ai/write`：**仅生成类场景** `scenario: weekly | report | draft`，后端按场景自动注入对应 SKILL 提示词（见第 7 节 SKILL 装配规则）；**不含 polish**
 - `POST /api/ai/polish`：**唯一润色入口**，request `{ text, mode: polish|rewrite|style, modelId? }`
+  - `polish`（润色）：优化措辞、消除病句，保持长度与原意
+  - `rewrite`（改写）：风格化重写，长度可压缩/扩展
+  - `style`（公文风格化）：转为公文书面语风格（仿宋句式、"进一步…"等）
+- `GET /api/health`：`{ version, schemaVersion, uptime, dbOk }`
 
-### 导出接口（防超时）
+### 导出接口（防超时 + 历史追溯）
 
 - 服务端生成前先 `COUNT` 估算：
-  - ≤5000 行（`EXPORT_SYNC_LIMIT`，常量在 `server/export/const.js`）→ 同步生成，响应 `{ fileId, url }`
-  - \>5000 行 → **立即返回 `{ jobId }`**（不执行生成），前端轮询 `GET /api/export/status/:jobId`，完成后 `GET /api/export/download/:fileId`
+  - ≤5000 行（`EXPORT_SYNC_LIMIT`，常量在 `server/export/const.js`）→ 同步生成，响应 `{ fileId, url: "/api/export/download/:fileId" }`
+  - \>5000 行 → **立即返回 `{ jobId }`**（不执行生成），前端轮询 `GET /api/export/status/:jobId`：
+    ```json
+    // pending
+    { "code": 0, "data": { "jobId": "uuid", "status": "pending" } }
+    // done
+    { "code": 0, "data": { "jobId": "uuid", "status": "done", "fileId": "uuid", "url": "/api/export/download/:fileId" } }
+    // failed
+    { "code": 0, "data": { "jobId": "uuid", "status": "failed", "message": "原因" } }
+    ```
   - 前端可显式 `?async=1` 强制异步；job 存活 1 小时自动清理
-- `POST /api/export/word`：公文 Word 导出（docx 库）。请求体 `{ format: 'gbt'|'internal', forceBanji: boolean, contentHtml, title, docNo }`
+- `POST /api/export/word`：公文 Word 导出（docx 库）。请求体 `{ format: 'gbt'|'internal', forceBanji: boolean, contentHtml, title, docNo, writingId? }`（writingId 关联 writings 记录历史）
 - `POST /api/export/excel`：台账报表导出（SheetJS）。请求体含当前筛选条件 + `fieldKeys`（列字段 key 列表）
 - 文件存 `data/exports/`，job 与文件 1 小时清理（`server/export/cleanup.js`，`cleanupExports({ now })` 可注入时间）
+- **导出历史**：`GET /api/exports?bizType=&writingId=&status=` 返回最近 7 天导出记录（含文件下载链接，`downloaded_at` 标记）
+
+### 附件接口（防路径遍历）
+
+- `POST /api/attachments`（multipart 上传，字段 bizType/bizId/file）、`GET /api/attachments?bizType=&bizId=`、`DELETE /api/attachments/:id`（软删）
+- `GET /api/attachments/:id/download`：
+  - 后端按 id 查 DB → 拿 `server_file_name`（uuid，后端生成，非用户输入）→ `path.resolve(ATTACH_DIR, serverFileName)` → **校验 `resolved.startsWith(ATTACH_DIR)`（防路径遍历）** → 文件不存在返回 404
+  - **拒绝任何客户端传入的文件路径**；磁盘文件名一律 uuid 重命名，用户文件名只存 `display_name`（响应头 `Content-Disposition: attachment; filename*=UTF-8''...`）
+  - 附件记录软删后下载返回 40402
 
 ## 5. 公文排版引擎
 
@@ -308,7 +392,22 @@ A4 页面、上 3.7cm 下 3.5cm 左 2.8cm 右 2.6cm、正文仿宋 16pt 行距 2
 - 无选区/纯空白选区 → 禁用按钮，提示"请先选中文本"
 - 跨区块选区 → 整体按"正文"处理，结果插回选区位置
 - 失败 → 不丢原文，保留选区，Toast 报错可重试；生成中按钮 loading 禁用
-- **撤销栈（自建，不用 execCommand）**：快照粒度 = AI 操作（仅"AI 替换/插入/全文替换"三类操作前 push），人工键盘编辑不消耗栈；快照 `{ html, cursor, ts }`，栈深上限 20 丢最旧；提供撤销/重做按钮，栈空置灰
+- **撤销栈（自建，不用 execCommand）**：
+  - 快照粒度：**人工编辑 + AI 操作都支持撤销**——键盘/粘贴输入做 800ms 防抖合并 push 快照；AI 替换/插入/全文替换强制 push
+  - 快照 `{ html, cursor, ts }`，栈深上限 50（防抖合并后人工输入条目有限），超限丢最旧
+  - 提供撤销/重做按钮，栈空置灰；AI 操作前快照与防抖未落地快照互不覆盖（AI 操作先 flush 防抖）
+- **beforeunload 提示**：编辑器内容与最近快照不一致（有未保存修改）→ `beforeunload` 触发浏览器原生离开确认；路由切换（SPA 内）用 `onBeforeRouteLeave` 弹 el-message-box 确认
+
+### 编辑器粘贴行为（实现细节）
+
+- `paste` 事件拦截：`preventDefault()` → 取 `clipboardData.getData('text/plain')`（去外部格式，防 Word/网页粘贴带入内联样式污染 data-block 结构）
+- 多段文本按换行拆为多个 `<p data-block="body">`；单段直接插入当前光标处，**默认归为 body 正文区块**
+- 若粘贴内容含图片（截图），走附件上传通道转存，编辑器插入附件引用
+
+### 当前文档内存态（生命周期明确）
+
+- 当前文档是页面内存态（`reactive`），**刷新/关闭丢失**；恢复策略：刷新后从 localStorage 恢复草稿（未保存部分）+ 从 writings 重载上次打开的已保存文档（`sessionStorage` 记住 lastOpenId）
+- 退出写作台（切路由）不销毁当前文档内存态（组件 keep-alive），仅切回时才触发未保存确认
 
 ### Glossary.vue
 
@@ -317,7 +416,7 @@ A4 页面、上 3.7cm 下 3.5cm 左 2.8cm 右 2.6cm、正文仿宋 16pt 行距 2
 
 ### Settings.vue
 
-AI 配置增删改（name/baseUrl/modelName/apiKey），测试连接（configId 与 apiKey 二选一），设 is_active；列表只显掩码。
+AI 配置增删改（name/baseUrl/modelName/apiKey），测试连接（**configId 优先于 apiKey**），设 is_active；列表只显掩码。
 
 ### 前端列配置（columns.js）
 
@@ -361,10 +460,17 @@ createProvider(config) 返回 {
 
 ### 场景参数结构
 
-- **weekly**：`{ scenario, dateFrom, dateTo, modelId? }`；后端自动聚合任务（按状态）、会议、文件收发数量注入 prompt。**不按用户过滤**（无账号体系），文档注明多人版加 `WHERE created_by = 当前用户`
-- **report**：`{ scenario, title?, bizRefs: [{bizType, ids}], extraNotes?, modelId? }`；后端按 bizRefs 拉记录详情（含附件名）注入。bizRefs 为空且无 extraNotes → 400
+- **weekly**：`{ scenario, dateFrom, dateTo, modelId? }`；后端自动聚合任务（按状态）、会议、文件收发数量注入 prompt。**不按用户过滤**（无账号体系），文档注明多人版加 `WHERE created_by = 当前用户`。**数据量上限：注入 prompt 的记录数上限 200 条**（取截止日期最近者优先），超限截断并在 prompt 注明"另有 N 条未列出"；计数统计（总数）不截断
+- **report**：`{ scenario, title?, bizRefs: [{bizType, ids}], extraNotes?, modelId? }`；后端按 bizRefs 拉记录详情（含附件名）注入。bizRefs 为空且无 extraNotes → 400。**上限：bizRefs 每类最多 50 条，超限报 400**
 - **draft**：两种输入二选一：`{ genre: 通知|请示|报告|函|纪要, subject, keyPoints: [...] }` 或 `{ pasteText: 原始材料 }`；同时提供 → 400 冲突，均无 → 400。结果含 data-block 结构可直接进排版
-- **polish**：`{ text, mode: polish|rewrite|style, modelId? }`，走 SSE
+- **polish**：`{ text, mode: polish|rewrite|style, modelId? }`，走 SSE。**text 上限 20000 字符**，超限报 400
+
+### 系统提示词组装（write 自动注入 SKILL）
+
+- 组装顺序：`[SKILL 全文（gongwen.js / biganzi.js）]` + `[场景指令模板]` + `[台账素材（周报聚合/汇报引用）]`，作为 system prompt
+- SKILL 全文较长（wenxi-skills 蒸馏内容），**逐字注入不压缩**（保证算法效果），与场景指令模板拼接后作为单条 system message
+- 场景指令模板存 `server/skills/scenarios.js`，按 scenario 索引；SKILL 文件为独立模块，前后端均可读（构建期打包进前端不需要——**SKILL 只服务端注入**，前端不持有）
+- 对话（chat）不带 SKILL，仅写作（write）注入
 
 ### SSE 约定
 
@@ -386,6 +492,8 @@ createProvider(config) 返回 {
 ### 周报聚合
 
 - 统计/聚合 SQL 强制 `deleted_at IS NULL`（公共查询构造器内置，全局规则）
+- 聚合维度：任务（按状态计数 + 进行中任务标题列表）、会议（时间范围内）、文件收发（收文/发文计数）、外出活动（活动标题列表）
+- 注入上限 200 条（见场景参数结构），计数不截断
 
 ## 8. 测试策略
 
@@ -397,28 +505,45 @@ createProvider(config) 返回 {
 ### 覆盖范围
 
 - 后端（node:test + app handler 直调）：CRUD、乐观锁 409、软删/恢复/永久删（40401/40402 区分）、导出阈值分支、错误码
-- 前端（Vitest + Vue Test Utils）：columns.js 字段映射、block-styles 校验脚本、润色撤销栈逻辑
+- 前端（Vitest + Vue Test Utils）：columns.js 字段映射、block-styles 校验脚本、润色撤销栈逻辑（含人工编辑防抖合并）、beforeunload 判定、粘贴清洗函数
 - 后端 404 兜底：未匹配 API 路由 → `404 { code: 40403, message: "接口不存在" }`
+
+### 并发与乐观锁测试
+
+- **409 并发冲突**：同一条记录，两个客户端先后拿 version=1 → 分别提交 → 第一个成功（version→2）、第二个 409；随后带新 version 重试成功
+- **库存并发**：supplies 领用 5 件两次（库存 10），并发请求下第二次领用后 balance_after=0、无负库存（同步 API 串行天然保证，测试固化该行为防回归）
+- **单实例锁**：启动两个进程（测试注入不同实例路径）→ 第二个拒绝启动
 
 ### AI 测试（不连真实模型）
 
 - 全部走 `setProviderFactory` 注入 fake provider（固定流式 chunk / 抛特定错误）
-- 用例：无 is_active → 400；.secret 缺失解密失败 → 500 且不泄露明文；SSE 事件序列格式；上游超时 → event: error 且不重试；weekly 聚合带 deleted_at IS NULL；上游错误体脱敏
+- 用例：无 is_active → 400；.secret 缺失解密失败 → 500 且不泄露明文；SSE 事件序列格式；上游超时 → event: error 且不重试；weekly 聚合带 deleted_at IS NULL；上游错误体脱敏；**weekly 200 条截断逻辑；report bizRefs 超 50 条 → 400；polish text 超 20000 字符 → 400；SKILL 注入断言（system prompt 含 gongwen 内容）**
 - .secret 缺失测试：`crypto.js` 暴露 `_getSecretPath()`，测试改环境变量 `WENXI_SECRET_PATH` 指向不存在路径，断言抛"缺少密钥文件"且接口返回 500 不泄露明文
-- 手动冒烟：开发环境连真实模型跑全流程
+- **真实模型依赖说明**：自动化测试一律不依赖外部网络；真实模型冒烟是**手动步骤**，依赖模型服务可达（网络/API Key/计费）。环境不允许时记录"环境限制"并降级为本地 Ollama 验证（如可装），不阻塞 CI 与本地测试
 
 ### 导出阈值测试
 
 - 造 5001 行 → 断言返回 `{ jobId }`；5000 行 → `{ fileId }`；阈值常量 `EXPORT_SYNC_LIMIT` 可覆盖边界
 - job 状态机：pending → done / failed（模拟生成抛错）；过期清理用 `cleanupExports({ now: 注入时间 })` 测清理逻辑，定时器本身不测
 
+### 性能测试计划（scripts/bench.js）
+
+- **性能目标**（本地单机，1 万条数据规模）：
+  - 列表接口 p95 < 200ms（带分页 + keyword 搜索）
+  - 统计接口 p95 < 500ms（月度聚合）
+  - 导出 5000 行 < 5s（同步分支）
+  - AI 流式首 token < 3s（网络正常时）
+- **方法**：`scripts/seed.js` 造 1 万条假数据（tasks 为主）→ `scripts/bench.js`（node 内置 fetch 循环 100 次采样取 p95）→ 结果记录 `docs/perf.md`
+- 里程碑：M5 末尾执行一次基准；超目标则优化（加索引/调页大小），记录到 perf.md
+
 ### 验收清单（成功标准）
 
 1. 7 个台账模块 CRUD + 回收站全通过
-2. 公文写作 4 场景 + 润色全流程可用（**M6 必须补一次真实模型全流程**，硬性要求）
+2. 公文写作 4 场景 + 润色全流程可用（**M6 必须补一次真实模型全流程**，硬性要求；环境不可达则本地 Ollama 替代并记录）
 3. GB/T 与内部材料两种排版切换正确
 4. Word/Excel 导出成功（含超量异步分支）
 5. 附件上传/预览/下载/软删清理
+6. 性能基准达标（p95 目标，见上）
 
 ## 9. 里程碑
 
@@ -440,9 +565,11 @@ createProvider(config) 返回 {
 
 - **.secret 必须随 data/ 一起拷贝**，否则 ai_configs 密文无法解密（启动时明确报错提示恢复）
 - README 加粗强调：data/ 目录整体拷贝（含 .secret）；web 端 JSON 导出仅作记录级迁移，不含附件二进制
+- 备份前**先停止服务**（或使用 `VACUUM INTO` 生成快照），避免拷贝中 SQLite 文件不一致
 
 ## 10. 部署
 
 - `npm install && npm run build && npm start`
-- 默认 `PORT=3000`（.env 可配），与 ai-workstation（1999）不冲突
+- 默认 `PORT=3000`（.env 可配：PORT、WENXI_DATA_DIR），与 ai-workstation（1999）不冲突
 - 数据在 `data/`，备份 = 拷贝 data 目录（含 .secret）
+- 进程管理：默认前台；可选 pm2/systemd（README 示例）；单实例锁防双开
