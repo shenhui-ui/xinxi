@@ -25,7 +25,7 @@
 
     <el-pagination v-model:current-page="page" :page-size="pageSize" :total="total" layout="total, prev, pager, next" @current-change="load" />
 
-    <el-drawer v-model="drawer" :title="editingId ? '编辑' : '详情'" size="520px">
+    <el-drawer v-model="drawer" :title="creating ? '新增' : '编辑'" size="520px">
       <el-form label-width="100px">
         <el-form-item v-for="f in formFields" :key="f.prop" :label="f.label">
           <el-input v-if="f.type === 'text'" v-model="form[f.prop]" />
@@ -71,7 +71,7 @@ const saving = ref(false)
 const drawer = ref(false)
 const editingId = ref(null)
 const creating = ref(false)
-const filters = reactive({ keyword: '', status: '' })
+const filters = reactive({ keyword: '', status: '', type: '' })
 const dateRange = ref(null)
 const form = reactive({})
 
@@ -81,6 +81,7 @@ function buildParams() {
   const p = { page: page.value, pageSize: pageSize.value }
   if (filters.keyword) p.keyword = filters.keyword
   if (filters.status) p.status = filters.status
+  if (filters.type) p.type = filters.type
   if (dateRange.value) { p.dateFrom = dateRange.value[0]; p.dateTo = dateRange.value[1] + 'T23:59:59' }
   return p
 }
@@ -97,6 +98,7 @@ async function load() {
 function reset() {
   filters.keyword = ''
   filters.status = ''
+  filters.type = ''
   dateRange.value = null
   page.value = 1
   load()
@@ -150,6 +152,7 @@ async function onRemove(row) {
 onMounted(() => {
   if (route.query.status) filters.status = route.query.status
   if (route.query.keyword) filters.keyword = route.query.keyword
+  if (route.query.type) filters.type = route.query.type
   if (route.query.from) dateRange.value = [route.query.from, route.query.to]
   load()
 })

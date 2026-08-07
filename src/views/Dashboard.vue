@@ -2,7 +2,7 @@
   <div class="dashboard">
     <el-row :gutter="16">
       <el-col :span="3" v-for="(v, k) in counts" :key="k">
-        <el-card shadow="hover" class="stat-card" @click="goModule(k)">
+        <el-card shadow="hover" class="stat-card" :class="{ 'no-click': k === 'attachments' }" @click="goModule(k)">
           <div class="stat-num">{{ v }}</div>
           <div class="stat-label">{{ labels[k] }}</div>
         </el-card>
@@ -53,6 +53,7 @@ function monthBounds() {
 }
 
 function goModule(k) {
+  if (k === 'attachments') return
   router.push({ path: `/${k}`, query: monthBounds() })
 }
 
@@ -71,6 +72,7 @@ onMounted(async () => {
 
 <style scoped>
 .stat-card { cursor: pointer; text-align: center; }
+.stat-card.no-click { cursor: default; }
 .stat-num { font-size: 28px; font-weight: 600; }
 .stat-label { color: #909399; margin-top: 4px; }
 .tip { color: #c0c4cc; font-size: 12px; margin-top: 8px; }
