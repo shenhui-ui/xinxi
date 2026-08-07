@@ -1,3 +1,6 @@
+// makeCrud 接口语义：可写列 = 表列 − 系统列(id/created_at/updated_at/deleted_at/version)，
+// 由 PRAGMA table_info 派生（created_by 为显式白名单例外）；
+// fields 参数仅用于校验与文档（safeCols/sortable 白名单），不再限定可写列。
 const { randomUUID } = require('node:crypto')
 const { toIso } = require('../utils/http')
 
@@ -5,6 +8,7 @@ function makeCrud(db, { table, fields, searchFields = [], sortable = [], childre
   const cols = [...fields, 'id', 'created_by', 'created_at', 'updated_at', 'deleted_at', 'version']
   const safeCols = (arr) => arr.filter((c) => cols.includes(c))
   const tableCols = db.prepare(`PRAGMA table_info(${table})`).all().map((c) => c.name)
+  const tableColsSet = new Set(tableCols)
   const sysCols = ['id', 'created_at', 'updated_at', 'deleted_at', 'version']
   const writableCols = tableCols.filter((c) => !sysCols.includes(c))
 
@@ -30,7 +34,7 @@ function makeCrud(db, { table, fields, searchFields = [], sortable = [], childre
       params.kw = like
     }
     for (const [qcol, col] of [['status', 'status'], ['type', 'task_type'], ['docType', 'doc_type'], ['actType', 'act_type']]) {
-      if (query[qcol] !== undefined && query[qcol] !== '') {
+      if (query[qcol] !== undefined && query[qcol] !== '' && tableColsSet.has(col)) {
         where.push(`${col} = @${qcol}`)
         params[qcol] = query[qcol]
       }
@@ -63,7 +67,7 @@ function makeCrud(db, { table, fields, searchFields = [], sortable = [], childre
   }
 
   function update(id, body) {
-    const version = parseInt(body.version, 10)
+    const version = Number(body.version)
     if (!Number.isInteger(version)) return { changed: 0 }
     const existing = get(id)
     if (!existing) return { changed: 0, exists: false }

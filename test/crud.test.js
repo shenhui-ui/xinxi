@@ -96,6 +96,14 @@ test('create 只接受白名单字段', () => {
   assert.equal(row.evil, undefined)
 })
 
+test('update 拒绝白名单外字段', () => {
+  const created = crud.create(base)
+  const r = crud.update(created.id, { ...base, evil: 'hack', title: '改后', version: 1 })
+  assert.equal(r.changed, 1)
+  const row = db.prepare('SELECT * FROM tasks WHERE id = ?').get(created.id)
+  assert.equal(row.evil, undefined)
+})
+
 test('sortable 校验，非白名单排序列忽略', () => {
   crud.create({ ...base, title: 'a' })
   crud.create({ ...base, title: 'b' })
