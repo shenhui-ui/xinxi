@@ -4,11 +4,24 @@ const fs = require('node:fs')
 const config = require('./config')
 const { initDb } = require('./db')
 
+function isProcessAlive(pid) {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch (e) {
+    return e.code === 'EPERM'
+  }
+}
+
 function acquireLock() {
   const lockPath = path.join(config.dataDir, '.instance.lock')
   if (fs.existsSync(lockPath)) {
-    const pid = fs.readFileSync(lockPath, 'utf8').trim()
-    throw new Error(`服务已在运行（PID ${pid}）`)
+    const pid = Number(fs.readFileSync(lockPath, 'utf8').trim())
+    if (!Number.isInteger(pid) || pid <= 0 || !isProcessAlive(pid)) {
+      fs.rmSync(lockPath, { force: true })
+    } else {
+      throw new Error(`服务已在运行（PID ${pid}）`)
+    }
   }
   fs.writeFileSync(lockPath, String(process.pid))
   return () => fs.rmSync(lockPath, { force: true })
