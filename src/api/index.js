@@ -24,7 +24,11 @@ export const api = {
   documents: crudApi('/documents'),
   activities: crudApi('/activities'),
   seals: crudApi('/seals'),
-  supplies: crudApi('/supplies'),
+  supplies: {
+    ...crudApi('/supplies'),
+    transactions: (id, data) => http.post(`/supplies/${id}/transactions`, data),
+    txList: (id) => http.get(`/supplies/${id}/transactions`),
+  },
   stats: {
     monthly: (p) => http.get('/stats/monthly', { params: p }),
     trend: (p) => http.get('/stats/trend', { params: p }),

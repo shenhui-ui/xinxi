@@ -16,9 +16,12 @@
         <el-menu-item index="/settings">AI 配置</el-menu-item>
       </el-menu>
     </el-aside>
-    <el-main class="main">
-      <router-view />
-    </el-main>
+    <el-container>
+      <el-header class="header">{{ $route.meta.title || '文玺' }}</el-header>
+      <el-main class="main">
+        <router-view />
+      </el-main>
+    </el-container>
   </el-container>
 </template>
 
@@ -30,5 +33,12 @@
 .aside { background: #f5f7fa; }
 .logo { padding: 16px; font-weight: 600; }
 .menu { border-right: none; }
+.header {
+  background: #fff;
+  border-bottom: 1px solid #ebeef5;
+  display: flex;
+  align-items: center;
+  font-weight: 600;
+}
 .main { background: #fff; }
 </style>
