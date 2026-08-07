@@ -4,5 +4,6 @@ module.exports = function routes(db) {
     res.json({ code: 0, data: { version: require('../../package.json').version, schemaVersion: '1', uptime: process.uptime(), dbOk: true } })
   })
   router.use('/tasks', require('./tasks')(db))
+  router.use('/attachments', require('./attachments')(db))
   return router
 }
