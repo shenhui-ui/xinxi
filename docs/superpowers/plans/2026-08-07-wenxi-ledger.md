@@ -429,7 +429,7 @@ git commit -m "feat: 统一响应包装与错误码工具"
 **Interfaces:**
 - Consumes: `initDb`（Task 1）、`server/utils/http.js` 的 `ok/fail/err40401/err40402/parsePagination/toIso`（Task 2）
 - Produces: `makeCrud(db, options)` → `{ list, get, create, update, remove, restore, permanent, trashCount }`
-  - `options`: `{ table, fields: [col...], searchFields: [col...], sortable: [col...], children: [{ table, fk }] }`
+  - `options`: `{ table, fields: [col...]（表字段参考，仅用于校验与文档，不再限定可写列；可写列 = 表列 − 系统列，由 PRAGMA table_info 派生）, searchFields: [col...], sortable: [col...], children: [{ table, fk }] }`
   - `list(query)` → `{ list, total, page, pageSize }`（含 `deleted=1` 回收站模式，排序 `deleted_at DESC`）
   - `get(id)` → 行对象（含 `deleted_at`，由路由层决定 40401/40402）
   - `create(body)` → 新行
