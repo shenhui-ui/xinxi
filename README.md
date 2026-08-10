@@ -78,9 +78,7 @@ tar czf wenxi-backup-$(date +%F).tar.gz data/
 
 **恢复**：新环境安装依赖后，将备份的 `data/` 目录整体拷回项目根目录，再启动即可自动使用库内数据。
 
-> ⚠️ **必须整体拷贝 `data/`（含 `data/.secret`）**。`.secret` 是 AI 配置 API Key 的加密密钥文件，后续里程碑使用；若丢失或未随备份恢复，加密数据将无法解密。web 端 JSON 导出仅作记录级迁移，不含附件二进制。
->
-> 当前阶段说明：M1+M2 里程碑 AI 配置功能尚未实现，`data/.secret` 由后续里程碑首次启动时自动生成，此前的备份保持整个 `data/` 目录完整即可。
+> ⚠️ **必须整体拷贝 `data/`（含 `data/.secret`）**。`.secret` 是 AI 配置 API Key 的加密密钥文件；若丢失或未随备份恢复，加密数据将无法解密，且服务启动时会拒绝启动（检测到库内存在密文而密钥缺失）。web 端 JSON 导出仅作记录级迁移，不含附件二进制。
 >
 > 备份前**先停止服务**（SQLite WAL 模式下直接拷贝运行中的 db 文件可能产生不一致快照）。
 
@@ -99,10 +97,12 @@ tar czf wenxi-backup-$(date +%F).tar.gz data/
 | `/api/supplies/:id/transactions` | 物资库存流水（入库/出库/领用，事务更新余额） |
 | `/api/attachments` | 附件上传/列表/软删，`GET /:id/download` 下载 |
 | `/api/stats/monthly` `/api/stats/trend` | 统计接口（`deleted_at` 已过滤） |
+| `GET/POST /api/ai/configs` `GET /api/ai/configs/active` `DELETE /api/ai/configs/:id` | AI 配置增改查删（api_key 明文入参→AES 加密存储，列表/查询仅回掩码；POST 带 id+version 乐观锁更新，apiKey 为空保留原密文；isActive 置位清除其他 active） |
+| `POST /api/ai/test` | AI 连接测试（`{configId}` 或 `{baseUrl, apiKey, modelName}`，configId 优先；均空 40002；15s 超时） |
 
 ## 后续里程碑（未实现）
 
-- M3/M4：AI 配置管理 + 公文写作/润色/对话（导航"公文写作"为占位页）
+- M3/M4：AI 公文写作/润色/对话（`/api/ai/chat`、`/api/ai/write`、`/api/ai/polish`，导航"公文写作"为占位页）
 - M5：Word/Excel 导出、Glossary 术语库、定时清理任务
 - 导航中的"UI 术语""AI 配置"页面当前为占位，待后续里程碑实现。
 
