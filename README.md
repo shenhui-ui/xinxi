@@ -63,14 +63,15 @@ npx vitest run      # 前端组件测试
 | `PORT` | 服务监听端口 | `3000` |
 | `WENXI_DATA_DIR` | 数据目录（wenxi.db、attachments/、.secret 均在此） | `./data` |
 
-## 端口与实例管理
+## 导出与备份
 
-- **端口冲突**：启动时若 `PORT` 被占用，自动改用 `PORT + 1` 并打印提示；再次冲突则退出，需手动设置 `PORT`。
-- **单实例锁**：`data/.instance.lock` 记录 PID，服务已在运行时再次启动会拒绝并提示（防止双进程写库）。
+**导出：**
 
-## 备份与恢复
+- **Word 导出**：写作台"导出 Word"按钮导出当前公文（GB/T 格式必须填写发文字号，否则返回 40003；内部材料格式默认无版记，可勾选"强制显示版记"）。
+- **Excel 导出**：台账列表导出（超 5000 行自动转异步任务，返回 jobId 轮询下载；5000 行以内同步返回）。
+- 导出文件 1 小时过期自动清理，导出历史保留 7 天；附件软删后 7 天自动清理。
 
-**备份**：先停止服务，再整体拷贝 `data/` 目录：
+**备份：** 先停止服务，再整体拷贝 `data/` 目录：
 
 ```bash
 # 停止服务（Ctrl+C）
@@ -78,15 +79,50 @@ npx vitest run      # 前端组件测试
 tar czf wenxi-backup-$(date +%F).tar.gz data/
 ```
 
-**恢复**：新环境安装依赖后，将备份的 `data/` 目录整体拷回项目根目录，再启动即可自动使用库内数据。
+**恢复：** 新环境安装依赖后，将备份的 `data/` 目录整体拷回项目根目录，再启动即可自动使用库内数据。
 
 > ⚠️ **必须整体拷贝 `data/`（含 `data/.secret`）**。`.secret` 是 AI 配置 API Key 的加密密钥文件；若丢失或未随备份恢复，加密数据将无法解密，且服务启动时会拒绝启动（检测到库内存在密文而密钥缺失）。web 端 JSON 导出仅作记录级迁移，不含附件二进制。
 >
 > 备份前**先停止服务**（SQLite WAL 模式下直接拷贝运行中的 db 文件可能产生不一致快照）。
+>
+> **加密范围**：仅 AI 配置的 `api_key_enc`（`ai_configs` 表）使用 AES-256-GCM 加密；**业务台账数据、附件均为明文存储**，备份与存放时注意介质安全。
+
+## 进程管理
+
+- 默认前台运行 `npm start`；单实例锁 `data/.instance.lock` 记录 PID，服务已在运行时再次启动会拒绝并提示（防止双进程写库）。
+- 端口冲突：启动时若 `PORT` 被占用，自动改用 `PORT + 1` 并打印提示；再次冲突则退出，需手动设置 `PORT`。
+
+**pm2**（进程守护、开机自启）：
+
+```bash
+pm2 start server/index.js --name wenxi
+pm2 save                    # 保存进程列表
+pm2 startup                 # 生成开机自启命令
+```
+
+**systemd**（`/etc/systemd/system/wenxi.service`，替换 `/path/to/wenxi` 为实际路径）：
+
+```ini
+[Unit]
+Description=WenXi 台账管理系统
+After=network.target
+
+[Service]
+WorkingDirectory=/path/to/wenxi
+ExecStart=/usr/bin/node server/index.js
+Restart=on-failure
+Environment=PORT=3000
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+sudo systemctl daemon-reload && sudo systemctl enable --now wenxi
+```
 
 ## 安全说明
 
-- **加密范围**：仅 AI 配置的 `api_key_enc`（`ai_configs` 表）使用 AES-256-GCM 加密，密钥存 `data/.secret`（chmod 600，gitignore）；**业务台账数据、附件均为明文存储**，备份与存放时注意介质安全。
 - `data/`、`dist/`、`.env` 均已在 `.gitignore` 中，不会提交到仓库。
 - 附件上传限制 20MB，存储文件名改为 uuid，防止路径遍历。
 
@@ -110,11 +146,10 @@ tar czf wenxi-backup-$(date +%F).tar.gz data/
 
 - **M4**：AI 公文写作工作台（三栏写作、SSE 流式、撤销/重做、草稿恢复）与"AI 配置"页面（模型配置/掩码/测试连接）
 - **M5**：公文 Word 导出（docx 映射/文号校验/版记规则）、台账 Excel 导出（同步/异步双分支）、导出历史与过期清理（附件 7 天/导出 1 小时）、Glossary 术语手册页
-- **M6**：writings 导出联动（exported_at/status/forceBanji/文号校验）、导出清理统一 now → toIso 格式
+- **M6**：writings 导出联动（exported_at/status/forceBanji/文号校验）、导出清理统一 now → toIso 格式、性能基准达标、真实模型全流程验收（见 `docs/acceptance.md`）
 
 ## 后续里程碑（未实现）
 
-- M6 收尾打磨、性能基准
 - 其余规划见 `docs/superpowers/plans/` 与 `docs/superpowers/specs/`
 
 ## 目录结构
@@ -131,6 +166,6 @@ tar czf wenxi-backup-$(date +%F).tar.gz data/
 ├── shared/blocks.json      # data-block 区块枚举单一事实源（9 类，前后端样式映射基准）
 ├── scripts/seed.js         # 造数脚本（默认 1 万条）
 ├── build/check-blocks.mjs  # 构建期校验
-├── docs/                   # 设计规格 / 性能基准 / 里程碑计划
+├── docs/                   # 设计规格 / 性能基准（perf.md）/ 验收清单（acceptance.md）/ 里程碑计划
 └── data/                   # 运行时数据（gitignore：wenxi.db / attachments/ / .secret）
 ```
