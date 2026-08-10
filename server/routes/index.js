@@ -14,5 +14,7 @@ module.exports = function routes(db) {
   const aiConfigs = require('./ai-configs')
   router.use('/ai/configs', aiConfigs(db))
   router.use('/ai/test', aiConfigs.makeTestRouter(db))
+  const aiRouter = require('./ai')
+  router.use('/ai', aiRouter(db))
   return router
 }

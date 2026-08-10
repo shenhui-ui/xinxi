@@ -99,10 +99,13 @@ tar czf wenxi-backup-$(date +%F).tar.gz data/
 | `/api/stats/monthly` `/api/stats/trend` | 统计接口（`deleted_at` 已过滤） |
 | `GET/POST /api/ai/configs` `GET /api/ai/configs/active` `DELETE /api/ai/configs/:id` | AI 配置增改查删（api_key 明文入参→AES 加密存储，列表/查询仅回掩码；POST 带 id+version 乐观锁更新，apiKey 为空保留原密文；isActive 置位清除其他 active） |
 | `POST /api/ai/test` | AI 连接测试（`{configId}` 或 `{baseUrl, apiKey, modelName}`，configId 优先；均空 40002；15s 超时） |
+| `POST /api/ai/chat` | AI 对话（SSE 流式，`{messages, modelId?}`；messages 非空校验；上游错误脱敏为固定文案） |
+| `POST /api/ai/write` | AI 写作（SSE 流式，`{scenario: weekly\|report\|draft, modelId?}`；weekly 自动聚合台账素材（200 条上限并注明）；report 校验 bizRefs 每类 ≤50 条、空且无 extraNotes 拒绝；draft 校验 genre+subject+keyPoints 与 pasteText 二选一） |
+| `POST /api/ai/polish` | AI 润色（SSE 流式，`{text, mode: polish\|rewrite\|style, modelId?}`；text ≤20000 字符；mode 缺省 polish） |
 
 ## 后续里程碑（未实现）
 
-- M3/M4：AI 公文写作/润色/对话（`/api/ai/chat`、`/api/ai/write`、`/api/ai/polish`，导航"公文写作"为占位页）
+- 公文写作/润色/对话前端页面（`/api/ai/chat`、`/api/ai/write`、`/api/ai/polish` 后端已就绪，导航"公文写作"为占位页）
 - M5：Word/Excel 导出、Glossary 术语库、定时清理任务
 - 导航中的"UI 术语""AI 配置"页面当前为占位，待后续里程碑实现。
 
