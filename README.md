@@ -119,8 +119,9 @@ tar czf wenxi-backup-$(date +%F).tar.gz data/
 │   ├── db.js               # SQLite 初始化 + 迁移
 │   ├── db/crud.js          # 通用 CRUD 构造器（乐观锁/软删/回收站/分页/搜索/级联）
 │   ├── routes/             # 6 台账 + 附件 + 统计路由
-│   └── utils/              # http 工具 / 附件存储
+│   └── utils/              # http 工具 / 附件存储 / docx 样式映射
 ├── src/                    # Vue 3 前端（Dashboard / 6 视图 / 回收站 / 占位页）
+├── shared/blocks.json      # data-block 区块枚举单一事实源（9 类，前后端样式映射基准）
 ├── scripts/seed.js         # 造数脚本（默认 1 万条）
 ├── build/check-blocks.mjs  # 构建期校验
 ├── docs/                   # 设计规格 / 性能基准 / 里程碑计划
