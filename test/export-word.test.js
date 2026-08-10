@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { buildWordDocx } from '../server/export/word.js'
+import { buildWordDocx, buildParagraphs, parseBlocks } from '../server/export/word.js'
 
 const sampleHtml = `
 <p data-block="wenhao">×局〔2026〕12号</p>
@@ -34,4 +34,21 @@ test('internal 导出：默认不含版记，forceBanji 时含', async () => {
 test('internal 导出不要求 docNo', async () => {
   const r = await buildWordDocx({ format: 'internal', forceBanji: false, contentHtml: '<p data-block="body">内容</p>', title: 't', docNo: '' })
   assert.ok(Buffer.isBuffer(r.buffer))
+})
+
+test('版记仅输出一次：gbt 1 / internal+false 0 / internal+true 1', () => {
+  const blocks = parseBlocks(sampleHtml)
+  const banji = '印发机关：××单位办公室  2026年8月7日印发'
+  const countFooter = (paragraphs) => paragraphs.filter((p) => p.style === 'Footer' && p.text === banji).length
+  assert.equal(countFooter(buildParagraphs('gbt', false, blocks)), 1)
+  assert.equal(countFooter(buildParagraphs('internal', false, blocks)), 0)
+  assert.equal(countFooter(buildParagraphs('internal', true, blocks)), 1)
+})
+
+test('版记不在正文段重复输出（gbt 全段落断言）', () => {
+  const blocks = parseBlocks(sampleHtml)
+  const paragraphs = buildParagraphs('gbt', false, blocks)
+  const banjiTexts = paragraphs.filter((p) => p.text.includes('印发机关'))
+  assert.equal(banjiTexts.length, 1)
+  assert.equal(banjiTexts[0].style, 'Footer')
 })

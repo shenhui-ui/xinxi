@@ -33,6 +33,33 @@ function styleName(block) {
   return DOCX_STYLES[block] || 'Normal'
 }
 
+function buildParagraphs(format, forceBanji, blocks) {
+  const out = []
+  for (const { block, text } of blocks) {
+    if (!text) continue
+    if (block === 'banji') continue // 版记统一走末尾段，避免重复输出
+    if (format === 'internal' && block === 'wenhao' && !forceBanji) continue
+    out.push({ style: styleName(block), text })
+  }
+  const banjiText = blocks.find((b) => b.block === 'banji')?.text
+  if (format === 'gbt' || (format === 'internal' && forceBanji)) {
+    out.push({ style: 'Footer', text: banjiText || ' ' })
+  }
+  return out
+}
+
+function toParagraph({ style, text }) {
+  const st = style
+  const runCfg = STYLE_RUNS[st] || STYLE_RUNS.Normal
+  const alignment = st === 'RightAlign' ? AlignmentType.RIGHT : st === 'Title' || st === 'WenHao' ? AlignmentType.CENTER : AlignmentType.LEFT
+  return new Paragraph({
+    children: [new TextRun({ text, ...runCfg })],
+    alignment,
+    indent: st === 'Normal' ? { firstLine: 480 } : undefined, // 2 字符≈480 twip
+    ...(st === 'Footer' ? { pageBreakBefore: false } : {}),
+  })
+}
+
 async function buildWordDocx({ format, forceBanji, contentHtml, title, docNo }) {
   if (format === 'gbt' && !docNo) {
     const e = new Error('GB/T 格式需填写发文字号')
@@ -40,30 +67,7 @@ async function buildWordDocx({ format, forceBanji, contentHtml, title, docNo }) 
     throw e
   }
   const blocks = parseBlocks(contentHtml)
-  const paragraphs = []
-
-  for (const { block, text } of blocks) {
-    if (!text) continue
-    if (format === 'internal' && block === 'wenhao' && !forceBanji) continue
-    if (format === 'internal' && block === 'banji' && !forceBanji) continue
-    const st = styleName(block)
-    const runCfg = STYLE_RUNS[st] || STYLE_RUNS.Normal
-    const alignment = st === 'RightAlign' ? AlignmentType.RIGHT : st === 'Title' || st === 'WenHao' ? AlignmentType.CENTER : AlignmentType.LEFT
-    paragraphs.push(new Paragraph({
-      children: [new TextRun({ text, ...runCfg })],
-      alignment,
-      indent: st === 'Normal' ? { firstLine: 480 } : undefined, // 2 字符≈480 twip
-    }))
-  }
-
-  if (format === 'gbt') {
-    const footerText = blocks.find((b) => b.block === 'banji')?.text || ' '
-    paragraphs.push(new Paragraph({
-      children: [new TextRun({ text: footerText, ...STYLE_RUNS.Footer })],
-      alignment: AlignmentType.LEFT,
-      pageBreakBefore: false,
-    }))
-  }
+  const paragraphs = buildParagraphs(format, forceBanji, blocks).map(toParagraph)
 
   const doc = new Document({
     sections: [{ properties: {}, children: paragraphs }],
@@ -73,4 +77,4 @@ async function buildWordDocx({ format, forceBanji, contentHtml, title, docNo }) 
   return { buffer, displayName: `${title || '未命名公文'}.docx` }
 }
 
-module.exports = { buildWordDocx, parseBlocks }
+module.exports = { buildWordDocx, buildParagraphs, parseBlocks }
