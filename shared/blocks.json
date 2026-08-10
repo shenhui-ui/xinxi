@@ -1,0 +1,11 @@
+[
+  { "block": "title", "name": "标题", "css": "小标宋22pt居中", "docx": "Title", "required": { "gbt": true, "internal": true } },
+  { "block": "wenhao", "name": "发文字号", "css": "黑体16pt居中", "docx": "WenHao", "required": { "gbt": true, "internal": false } },
+  { "block": "h1", "name": "一级标题", "css": "黑体16pt", "docx": "Heading1", "required": { "gbt": false, "internal": false } },
+  { "block": "h2", "name": "二级标题", "css": "楷体16pt", "docx": "Heading2", "required": { "gbt": false, "internal": false } },
+  { "block": "body", "name": "正文", "css": "仿宋16pt首行缩进2字", "docx": "Normal", "required": { "gbt": true, "internal": true } },
+  { "block": "sign", "name": "落款", "css": "仿宋16pt右对齐", "docx": "RightAlign", "required": { "gbt": false, "internal": false } },
+  { "block": "attachment", "name": "附件说明", "css": "仿宋16pt", "docx": "Attachment", "required": { "gbt": false, "internal": false } },
+  { "block": "kai", "name": "插入语/强调", "css": "楷体16pt", "docx": "ItalicBody", "required": { "gbt": false, "internal": false } },
+  { "block": "banji", "name": "版记", "css": "仿宋12pt分隔线页尾", "docx": "Footer", "required": { "gbt": true, "internal": false } }
+]
