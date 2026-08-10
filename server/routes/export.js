@@ -31,12 +31,22 @@ function countRows(db, module, filters) {
 }
 
 async function generateExcel(db, module, filters, fieldKeys) {
+  const XLSX = require('xlsx')
   const { whereSql, params } = countRows(db, module, filters)
   const cfg = TABLE_MAP[module]
-  const rows = db.prepare(`SELECT * FROM ${cfg.table} ${whereSql}`).all(params)
-  const XLSX = require('xlsx')
   const wb = XLSX.utils.book_new()
-  const data = rows.map((r) => {
+  const allRows = []
+  const BATCH = 2000
+  let offset = 0
+  while (true) {
+    const rows = db.prepare(`SELECT * FROM ${cfg.table} ${whereSql} ORDER BY rowid LIMIT @limit OFFSET @offset`)
+      .all({ ...params, limit: BATCH, offset })
+    if (!rows.length) break
+    allRows.push(...rows)
+    offset += BATCH
+    await new Promise((r) => setImmediate(r))
+  }
+  const data = allRows.map((r) => {
     const out = {}
     for (const key of fieldKeys || []) {
       if (key in r) out[key] = r[key]
@@ -101,11 +111,17 @@ module.exports = function exportRouter(db) {
     const body = req.body || {}
     try {
       const { buffer, displayName } = await buildWordDocx(body)
-      if (body.writingId) linkWriting(db, body.writingId, body.targetVersion)
       const r = writeExportFile(db, {
         bizType: 'word', writingId: body.writingId, displayName,
         buffer, format: body.format, filterJson: JSON.stringify({ title: body.title }),
       })
+      try {
+        linkWriting(db, body.writingId, body.targetVersion)
+      } catch (e) {
+        db.prepare('DELETE FROM exports WHERE file_id = ?').run(r.fileId)
+        fs.rmSync(path.join(exportsDir(), r.fileId), { force: true })
+        throw e
+      }
       ok(res, r)
     } catch (e) {
       if (e.code === 40003) return fail(res, 40003, 'GB/T 格式需填写发文字号')
@@ -143,10 +159,10 @@ module.exports = function exportRouter(db) {
           const fileId = randomUUID()
           fs.writeFileSync(path.join(exportsDir(), fileId), buffer)
           db.prepare("UPDATE exports SET status = 'done', file_id = ?, display_name = ?, message = NULL WHERE job_id = ?").run(fileId, displayName, jobId)
-          jobs.set(jobId, { status: 'done', fileId })
+          jobs.delete(jobId)
         }).catch((e) => {
           db.prepare("UPDATE exports SET status = 'failed', message = ? WHERE job_id = ?").run(e.message.slice(0, 200), jobId)
-          jobs.set(jobId, { status: 'failed', message: e.message })
+          jobs.delete(jobId)
         })
       }, 0)
       ok(res, { jobId })
@@ -154,8 +170,14 @@ module.exports = function exportRouter(db) {
   })
 
   router.get('/status/:jobId', (req, res) => {
-    const row = db.prepare('SELECT job_id, status, file_id, message FROM exports WHERE job_id = ?').get(req.params.jobId)
+    const row = db.prepare('SELECT job_id, status, file_id, message, created_at FROM exports WHERE job_id = ?').get(req.params.jobId)
     if (!row) return fail(res, 40401, '任务不存在')
+    if (row.status === 'pending' && row.created_at && row.created_at < toIso(new Date(Date.now() - 3600000))) {
+      db.prepare("UPDATE exports SET status = 'failed', message = ? WHERE job_id = ?").run('导出超时（超过 1 小时），请重试', req.params.jobId)
+      jobs.delete(req.params.jobId)
+      row.status = 'failed'
+      row.message = '导出超时（超过 1 小时），请重试'
+    }
     const out = { jobId: row.job_id, status: row.status }
     if (row.status === 'done') out.fileId = row.file_id
     if (row.status === 'failed') out.message = row.message

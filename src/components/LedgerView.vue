@@ -9,6 +9,7 @@
       <el-button type="primary" @click="load">查询</el-button>
       <el-button @click="reset">重置</el-button>
       <div style="flex: 1"></div>
+      <el-button :loading="exporting" @click="exportExcel">导出 Excel</el-button>
       <el-button type="primary" @click="openCreate">新增</el-button>
     </div>
 
@@ -47,9 +48,10 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, onBeforeUnmount } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { api } from '../api'
+import { api, http } from '../api'
+import { fieldKeys } from '../config/columns'
 import { useRoute } from 'vue-router'
 import AttachmentList from './AttachmentList.vue'
 
@@ -68,6 +70,8 @@ const page = ref(1)
 const pageSize = ref(20)
 const loading = ref(false)
 const saving = ref(false)
+const exporting = ref(false)
+let exportTimer = null
 const drawer = ref(false)
 const editingId = ref(null)
 const creating = ref(false)
@@ -148,6 +152,64 @@ async function onRemove(row) {
   ElMessage.success('已删除')
   load()
 }
+
+function download(fileId) {
+  const a = document.createElement('a')
+  a.href = `/api/export/download/${fileId}`
+  a.click()
+}
+
+async function exportExcel() {
+  if (exporting.value) return
+  exporting.value = true
+  try {
+    const body = {
+      module: props.moduleKey,
+      filters: buildParams(),
+      fieldKeys: fieldKeys[props.moduleKey] || [],
+      pageSize: 5000,
+    }
+    const res = await http.post('/export/excel', body)
+    if (res.fileId) return download(res.fileId)
+    if (res.jobId) {
+      ElMessage.info('数据量大，正在后台导出，请稍候…')
+      pollExport(res.jobId)
+      return
+    }
+    ElMessage.error('导出失败：未知响应')
+  } catch (e) {
+    ElMessage.error('导出失败')
+  } finally {
+    exporting.value = false
+  }
+}
+
+function pollExport(jobId) {
+  const tick = async () => {
+    try {
+      const st = await http.get(`/export/status/${jobId}`)
+      if (st.status === 'done') {
+        clearInterval(exportTimer)
+        exportTimer = null
+        ElMessage.success('导出完成')
+        download(st.fileId)
+      } else if (st.status === 'failed') {
+        clearInterval(exportTimer)
+        exportTimer = null
+        ElMessage.error(st.message || '导出失败')
+      }
+    } catch (e) {
+      clearInterval(exportTimer)
+      exportTimer = null
+      ElMessage.error('导出失败')
+    }
+  }
+  exportTimer = setInterval(tick, 2000)
+}
+
+onBeforeUnmount(() => {
+  if (exportTimer) clearInterval(exportTimer)
+})
 
 onMounted(() => {
   if (route.query.status) filters.status = route.query.status

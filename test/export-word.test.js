@@ -52,3 +52,19 @@ test('版记不在正文段重复输出（gbt 全段落断言）', () => {
   assert.equal(banjiTexts.length, 1)
   assert.equal(banjiTexts[0].style, 'Footer')
 })
+
+test('无 data-block 的手工段落按 body 导出', async () => {
+  const html = '<p data-block="title">标题</p><p>手工输入的内容</p><div>另一个段落</div>'
+  const { buffer } = await buildWordDocx({ format: 'internal', forceBanji: false, contentHtml: html, title: 't', docNo: '' })
+  assert.ok(Buffer.isBuffer(buffer))
+  const blocks = parseBlocks(html)
+  const paras = buildParagraphs('internal', false, blocks)
+  assert.equal(paras.find((p) => p.text === '标题').style, 'Title')
+  assert.ok(paras.some((p) => p.text === '手工输入的内容' && p.style === 'Normal'))
+  assert.ok(paras.some((p) => p.text === '另一个段落' && p.style === 'Normal'))
+})
+
+test('parseBlocks 过滤空段与仅空白段', () => {
+  const blocks = parseBlocks('<p data-block="body">正文</p><p> </p><p data-block="sign">&nbsp;</p><div>   </div>')
+  assert.deepEqual(blocks, [{ block: 'body', text: '正文' }])
+})

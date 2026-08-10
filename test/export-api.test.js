@@ -116,3 +116,23 @@ test('excel 未知 fieldKey 忽略不报错', async () => {
   const r = await call('POST', '/api/export/excel', { module: 'tasks', filters: {}, fieldKeys: ['title', 'hack_col'], pageSize: 5000 })
   assert.equal(r.statusCode, 200)
 })
+
+test('writings 导出 409 回滚：不残留 exports 行与文件', async () => {
+  const w = await call('POST', '/api/writings', { title: '周报', scenario: 'weekly', content_html: html, status: 'saved' })
+  await call('POST', '/api/export/word', { format: 'internal', forceBanji: false, contentHtml: html, title: '周报', docNo: '', writingId: w.body.id, targetVersion: 1 })
+  const conflict = await call('POST', '/api/export/word', { format: 'internal', forceBanji: false, contentHtml: html, title: 'x', docNo: '', writingId: w.body.id, targetVersion: 1 })
+  assert.equal(conflict.statusCode, 409)
+  const hist = await call('GET', `/api/exports?writingId=${w.body.id}`)
+  assert.equal(hist.body.list.length, 1, '409 失败不应残留 exports 行')
+  const files = fs.readdirSync(EXPORTS_DIR)
+  assert.equal(files.length, 1, '409 失败不应残留物理文件')
+})
+
+test('pending 超过 1 小时置 failed', async () => {
+  db.prepare(`INSERT INTO exports (id, job_id, biz_type, writing_id, format, filter_json, file_id, display_name, status, message, expires_at, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`)
+    .run('t1', 'stale-job', 'excel', null, null, '{}', null, 'x', 'pending', null, '2099-01-01', '2026-01-01T00:00:00+08:00')
+  const st = await call('GET', '/api/export/status/stale-job')
+  assert.equal(st.body.status, 'failed')
+  assert.ok(st.body.message.includes('超时'))
+  assert.equal(db.prepare('SELECT status FROM exports WHERE job_id = ?').get('stale-job').status, 'failed', 'DB 状态同步更新')
+})

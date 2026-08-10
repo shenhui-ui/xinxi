@@ -15,16 +15,16 @@ const STYLE_RUNS = {
 
 function parseBlocks(contentHtml) {
   const out = []
-  const re = /<p\s+data-block="([^"]+)"[^>]*>([\s\S]*?)<\/p>/g
+  const re = /<p\s+data-block="([^"]+)"[^>]*>([\s\S]*?)<\/p>|<p[^>]*>([\s\S]*?)<\/p>|<div[^>]*>([\s\S]*?)<\/div>/g
   let m
   while ((m = re.exec(contentHtml))) {
-    const block = m[1]
-    const inner = m[2]
+    const block = m[1] || 'body'
+    const inner = (m[2] ?? m[3] ?? m[4] ?? '')
       .replace(/<[^>]+>/g, '')
       .replace(/&nbsp;/g, ' ')
       .replace(/&amp;/g, '&')
       .trim()
-    out.push({ block, text: inner })
+    if (inner) out.push({ block, text: inner })
   }
   return out
 }

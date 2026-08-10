@@ -2,24 +2,24 @@ import { test, beforeEach, afterEach } from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
-import { initDb } from '../server/db.js'
-import { cleanupExports, cleanupAttachments, exportsDir } from '../server/export/cleanup.js'
-import { attachDir } from '../server/utils/storage.js'
 
-const TEST_DB = 'data/test-cleanup.db'
+process.env.WENXI_DATA_DIR = path.resolve('data', 'test-cleanup-data')
+
+const { initDb } = await import('../server/db.js')
+const { cleanupExports, cleanupAttachments, exportsDir } = await import('../server/export/cleanup.js')
+const { attachDir } = await import('../server/utils/storage.js')
+
+const TEST_DATA_DIR = path.resolve('data/test-cleanup-data')
+const TEST_DB = path.join(TEST_DATA_DIR, 'cleanup.db')
 let db
 
 beforeEach(() => {
-  fs.rmSync(TEST_DB, { force: true })
-  fs.rmSync('data/exports', { recursive: true, force: true })
-  fs.rmSync('data/attachments', { recursive: true, force: true })
+  fs.rmSync(TEST_DATA_DIR, { recursive: true, force: true })
   db = initDb(TEST_DB)
 })
 afterEach(() => {
   db.close()
-  fs.rmSync(TEST_DB, { force: true })
-  fs.rmSync('data/exports', { recursive: true, force: true })
-  fs.rmSync('data/attachments', { recursive: true, force: true })
+  fs.rmSync(TEST_DATA_DIR, { recursive: true, force: true })
 })
 
 test('cleanupExports 删除过期行+文件', () => {
@@ -43,4 +43,24 @@ test('cleanupAttachments 删除 7 天前软删附件', () => {
   cleanupAttachments(db, { now: '2026-08-07' })
   assert.ok(!fs.existsSync(path.join(attachDir(), 'old.bin')))
   assert.ok(fs.existsSync(path.join(attachDir(), 'new.bin')), '7 天内软删保留')
+})
+
+test('清理操作不触碰真实 data/attachments 与 data/exports', () => {
+  const realAttach = path.resolve('data/attachments')
+  const realExports = path.resolve('data/exports')
+  fs.mkdirSync(realAttach, { recursive: true })
+  fs.mkdirSync(realExports, { recursive: true })
+  fs.writeFileSync(path.join(realAttach, 'keep.bin'), 'real')
+  fs.writeFileSync(path.join(realExports, 'keep.xlsx'), 'real')
+  try {
+    fs.mkdirSync(exportsDir(), { recursive: true })
+    fs.mkdirSync(attachDir(), { recursive: true })
+    cleanupExports(db, { now: '2099-01-01' })
+    cleanupAttachments(db, { now: '2099-01-01' })
+    assert.ok(fs.existsSync(path.join(realAttach, 'keep.bin')), '真实附件目录未被清理')
+    assert.ok(fs.existsSync(path.join(realExports, 'keep.xlsx')), '真实导出目录未被清理')
+  } finally {
+    fs.rmSync(path.join(realAttach, 'keep.bin'), { force: true })
+    fs.rmSync(path.join(realExports, 'keep.xlsx'), { force: true })
+  }
 })
