@@ -1,0 +1,5 @@
+module.exports = {
+  EXPORT_SYNC_LIMIT: 5000,
+  EXPORT_TTL_MS: 3600000,
+  EXPORT_HISTORY_DAYS: 7,
+}

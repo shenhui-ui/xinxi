@@ -12,6 +12,8 @@ module.exports = function routes(db) {
   router.use('/supplies', require('./supplies')(db))
   router.use('/stats', require('./stats')(db))
   router.use('/writings', require('./writings')(db))
+  router.use('/export', require('./export')(db))
+  router.get('/exports', require('./export').historyHandler(db))
   const aiConfigs = require('./ai-configs')
   router.use('/ai/configs', aiConfigs(db))
   router.use('/ai/test', aiConfigs.makeTestRouter(db))

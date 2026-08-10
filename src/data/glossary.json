@@ -1,0 +1,74 @@
+{
+  "navigation": [
+    { "cn": "面包屑", "en": "Breadcrumb", "def": "展示当前页面在系统层级结构中的位置，支持逐级返回上级页面。", "demo": "<nav class=\"demo-bc\">首页 &gt; 项目管理 &gt; <strong>任务详情</strong></nav>" },
+    { "cn": "标签页", "en": "Tabs", "def": "将同一视图下的多个面板分组，点击切换内容，不跳转页面。", "demo": "<div class=\"demo-tabs\"><button class=\"on\">概览</button><button>明细</button><button>日志</button></div>" },
+    { "cn": "分页", "en": "Pagination", "def": "将长列表拆分为多页，通过页码或上一页/下一页浏览。", "demo": "<div class=\"demo-page\">‹ 1 2 3 4 5 ›</div>" },
+    { "cn": "汉堡菜单", "en": "Hamburger Menu", "def": "移动端常见的三条横线图标，点击展开或收起导航菜单。", "demo": "<button class=\"demo-burger\">☰</button>" },
+    { "cn": "步骤条", "en": "Steps", "def": "引导用户完成多步骤流程，展示当前进度与已完成步骤。", "demo": "<div class=\"demo-steps\"><span class=\"done\">✓ 提交</span><span class=\"on\">● 审批</span><span>○ 归档</span></div>" },
+    { "cn": "侧边导航", "en": "Sidebar Nav", "def": "固定在页面左侧的纵向导航，常与主内容区联动。", "demo": "<aside class=\"demo-side\">📁 总览<br/>📋 台账<br/>⚙️ 设置</aside>" },
+    { "cn": "下拉菜单", "en": "Dropdown", "def": "点击或悬停触发的一组操作菜单，支持分组与禁用项。", "demo": "<details class=\"demo-drop\"><summary>更多操作 ▾</summary><ul><li>编辑</li><li>导出</li><li class=\"d\">删除</li></ul></details>" },
+    { "cn": "导航栏", "en": "Navbar", "def": "页面顶部的全局导航区域，通常含 Logo、菜单、用户信息。", "demo": "<header class=\"demo-nav\"><b>文玺</b> <span>首页</span> <span>工作台</span> <span style=\"float:right\">👤</span></header>" },
+    { "cn": "搜索导航", "en": "Search Nav", "def": "通过关键词快速定位功能或页面的导航方式。", "demo": "<input class=\"demo-search\" placeholder=\"搜索功能…\" />" },
+    { "cn": "锚点导航", "en": "Anchor Nav", "def": "长页面中点击跳转到对应章节位置，随滚动高亮当前章节。", "demo": "<div class=\"demo-anchor\"><a># 概述</a><a class=\"on\"># 明细</a><a># 附录</a></div>" }
+  ],
+  "form": [
+    { "cn": "输入框", "en": "Input", "def": "单行文本录入控件，支持占位提示、前后缀、清空按钮。", "demo": "<input class=\"demo-input\" placeholder=\"请输入任务名称\" />" },
+    { "cn": "开关", "en": "Switch", "def": "二选一的布尔控件，直观表示开/关状态。", "demo": "<label class=\"demo-switch\"><input type=\"checkbox\" checked /><i></i></label>" },
+    { "cn": "日期选择器", "en": "Date Picker", "def": "通过日历面板选择日期或日期范围。", "demo": "<input class=\"demo-input\" value=\"2026-08-07\" /> 📅" },
+    { "cn": "滑块", "en": "Slider", "def": "拖动滑块在区间内取值，常用于数值范围的快速调整。", "demo": "<input type=\"range\" class=\"demo-range\" value=\"40\" />" },
+    { "cn": "搜索框", "en": "Search Box", "def": "带放大镜图标与清空按钮的输入框，回车或防抖触发搜索。", "demo": "<div class=\"demo-searchbox\">🔍 <input placeholder=\"搜索…\" /></div>" },
+    { "cn": "单选框", "en": "Radio", "def": "一组互斥选项中单选一个，常用于少量固定选项。", "demo": "<label class=\"demo-radio\"><input type=\"radio\" name=\"r\" checked /> 选项A</label><label class=\"demo-radio\"><input type=\"radio\" name=\"r\" /> 选项B</label>" },
+    { "cn": "复选框", "en": "Checkbox", "def": "可多选的布尔控件，常用于批量选择或多项设置。", "demo": "<label class=\"demo-cb\"><input type=\"checkbox\" checked /> 周一</label><label class=\"demo-cb\"><input type=\"checkbox\" /> 周二</label>" },
+    { "cn": "多选下拉", "en": "Multi-select", "def": "下拉列表中可勾选多项，已选项以标签形式回显。", "demo": "<div class=\"demo-multi\"><span>任务</span><span>会议</span><span class=\"x\">×</span> ▾</div>" },
+    { "cn": "级联选择", "en": "Cascader", "def": "多级联动选择，如省市区、部门层级，逐级展开选项。", "demo": "<div class=\"demo-casc\">省级 ▾ &gt; 市级 ▾ &gt; 区级</div>" },
+    { "cn": "上传", "en": "Upload", "def": "支持选择文件、拖拽、进度展示与文件列表管理。", "demo": "<div class=\"demo-upload\">⬆ 点击或拖拽上传</div>" }
+  ],
+  "button": [
+    { "cn": "主按钮", "en": "Primary Button", "def": "页面中最主要的操作入口，视觉权重最高，通常一个页面只有一个。", "demo": "<button class=\"demo-btn primary\">提交</button>" },
+    { "cn": "次按钮", "en": "Default Button", "def": "常规辅助操作，视觉弱于主按钮，可与主按钮成对出现。", "demo": "<button class=\"demo-btn\">取消</button>" },
+    { "cn": "幽灵按钮", "en": "Ghost Button", "def": "无填充色、仅描边或无边框的按钮，常用于深色背景或轻量场景。", "demo": "<button class=\"demo-btn ghost\">查看</button>" },
+    { "cn": "文字按钮", "en": "Text Button", "def": "仅文字的弱操作按钮，常用于表格行内或密集区域。", "demo": "<button class=\"demo-btn text\">详情</button>" },
+    { "cn": "危险按钮", "en": "Danger Button", "def": "红色系，表示删除、停用等破坏性操作，通常需二次确认。", "demo": "<button class=\"demo-btn danger\">删除</button>" },
+    { "cn": "悬浮按钮", "en": "FAB", "def": "悬浮于页面角落的圆形操作按钮，承载页面级主操作。", "demo": "<button class=\"demo-fab\">＋</button>" },
+    { "cn": "加载按钮", "en": "Loading Button", "def": "点击后显示加载状态并禁用，防止重复提交。", "demo": "<button class=\"demo-btn primary\">⏳ 保存中…</button>" },
+    { "cn": "按钮组", "en": "Button Group", "def": "多个按钮并排成组，常用于分片切换或工具条。", "demo": "<div class=\"demo-group\"><button class=\"on\">日</button><button>周</button><button>月</button></div>" },
+    { "cn": "图标按钮", "en": "Icon Button", "def": "仅图标构成的按钮，节省空间，需保证可访问性（title/aria）。", "demo": "<button class=\"demo-icon\">⚙</button><button class=\"demo-icon\">🔔</button>" },
+    { "cn": "下拉按钮", "en": "Split Button", "def": "主按钮旁带小箭头，点击展开更多选项或最近使用项。", "demo": "<div class=\"demo-split\"><button class=\"primary\">导出 ▾</button><ul class=\"demo-splitmenu\"><li>导出 Word</li><li>导出 Excel</li></ul></div>" }
+  ],
+  "feedback": [
+    { "cn": "提示条", "en": "Toast", "def": "轻量短暂的操作结果提示，自动消失，不打断操作。", "demo": "<div class=\"demo-toast\">✓ 保存成功</div>" },
+    { "cn": "模态框", "en": "Modal", "def": "阻塞性弹窗，聚焦于单一任务，需用户操作后关闭。", "demo": "<div class=\"demo-modal-mask\"><div class=\"demo-modal\"><h4>确认信息</h4><p>此操作不可撤销？</p><button class=\"primary\">确定</button><button>取消</button></div></div>" },
+    { "cn": "抽屉", "en": "Drawer", "def": "从页面边缘滑出的面板，用于详情展示或编辑，不脱离上下文。", "demo": "<div class=\"demo-drawer\"><b>任务详情</b><p>名称：××</p><p>状态：进行中</p></div>" },
+    { "cn": "骨架屏", "en": "Skeleton", "def": "数据加载中显示占位骨架，降低等待焦虑，防止布局跳动。", "demo": "<div class=\"demo-skeleton\"><div class=\"sk\"></div><div class=\"sk w60\"></div><div class=\"sk w80\"></div></div>" },
+    { "cn": "确认弹窗", "en": "Confirm Dialog", "def": "对破坏性/重要操作要求用户显式确认，含取消与确认按钮。", "demo": "<div class=\"demo-confirm\">❓ 确定删除该记录？<br/><button class=\"primary\">确定</button><button>取消</button></div>" },
+    { "cn": "通知", "en": "Notification", "def": "右上角弹出的系统级通知，可包含标题、正文、操作按钮。", "demo": "<div class=\"demo-notify\"><b>新消息</b> 李四 @了你 <button>查看</button></div>" },
+    { "cn": "加载指示", "en": "Spinner", "def": "页面或区块加载中的旋转指示器，可搭配文案。", "demo": "<div class=\"demo-spinner\"></div> 加载中…" },
+    { "cn": "进度条", "en": "Progress", "def": "展示任务完成百分比或流程进度，支持状态色。", "demo": "<div class=\"demo-progress\"><div class=\"bar\" style=\"width:65%\">65%</div></div>" },
+    { "cn": "气泡提示", "en": "Tooltip", "def": "悬停或聚焦时出现的简短解释文本，不承载关键信息。", "demo": "<span class=\"demo-tip\">超期任务 ⓘ</span>" },
+    { "cn": "空状态", "en": "Empty State", "def": "列表或数据区域为空时的引导提示，含图标、说明与操作。", "demo": "<div class=\"demo-empty\">📭<p>暂无数据</p><button>去创建</button></div>" }
+  ],
+  "layout": [
+    { "cn": "栅格", "en": "Grid", "def": "12/24 列响应式布局体系，控制元素在页面中的宽度与对齐。", "demo": "<div class=\"demo-grid\"><div class=\"g6\">6</div><div class=\"g6\">6</div><div class=\"g12\">12</div></div>" },
+    { "cn": "弹性布局", "en": "Flexbox", "def": "一维布局模型，通过主轴/交叉轴控制元素排列、对齐与伸缩。", "demo": "<div class=\"demo-flex\"><span>左</span><span>中(弹性)</span><span>右</span></div>" },
+    { "cn": "卡片", "en": "Card", "def": "将相关信息聚合成独立容器的布局单元，含标题与内容区。", "demo": "<div class=\"demo-card\"><h5>今日待办</h5><p>3 项任务需处理</p></div>" },
+    { "cn": "手风琴", "en": "Accordion", "def": "多个面板垂直堆叠，一次只展开一个，节省垂直空间。", "demo": "<div class=\"demo-acc\"><div class=\"on\">▾ 项目概览</div><div>▸ 任务明细</div><div>▸ 附件</div></div>" },
+    { "cn": "响应式断点", "en": "Breakpoints", "def": "按视口宽度切换布局的阈值，如手机/平板/桌面三档。", "demo": "<div class=\"demo-bp\">🖥 桌面 ≥1200px<br/>📱 手机 &lt;768px</div>" },
+    { "cn": "三栏布局", "en": "Three-Column Layout", "def": "左导航+中间主区+右详情的三栏结构，信息密度高。", "demo": "<div class=\"demo-3col\"><aside>导航</aside><main>内容</main><aside>详情</aside></div>" },
+    { "cn": "页眉", "en": "Header", "def": "页面顶部区域，通常含标题、面包屑、操作按钮。", "demo": "<div class=\"demo-header\"><b>任务管理</b> <button class=\"primary\">+ 新建</button></div>" },
+    { "cn": "页脚", "en": "Footer", "def": "页面底部信息区，常放版权、版本号、帮助链接。", "demo": "<footer class=\"demo-footer\">© 2026 文玺 v0.1.0</footer>" },
+    { "cn": "容器", "en": "Container", "def": "包裹页面主内容区的最大宽度容器，使内容居中并保持可读行宽。", "demo": "<div class=\"demo-container\">主内容区</div>" },
+    { "cn": "分割线", "en": "Divider", "def": "分隔相邻内容区块的细线，常用于表单、卡片与工具栏之间。", "demo": "<div>上半部分</div><div class=\"demo-hr\"></div><div>下半部分</div>" }
+  ],
+  "dataDisplay": [
+    { "cn": "表格", "en": "Table", "def": "行列展示结构化数据，支持排序、筛选、分页、行操作。", "demo": "<table class=\"demo-table\"><tr><th>任务</th><th>状态</th></tr><tr><td>周报</td><td>✅ 完成</td></tr><tr><td>会议纪要</td><td>⏳ 进行中</td></tr></table>" },
+    { "cn": "轮播图", "en": "Carousel", "def": "横向循环展示多张图片或卡片，支持自动播放与指示点。", "demo": "<div class=\"demo-carousel\">[ 图 1 ] ◀ ▶</div>" },
+    { "cn": "徽标", "en": "Badge", "def": "在图标或文本角上的计数标记，如未读数、待办数。", "demo": "<span class=\"demo-badge\">🔔 <i>3</i></span>" },
+    { "cn": "时间轴", "en": "Timeline", "def": "按时间顺序展示事件节点，体现过程推进。", "demo": "<div class=\"demo-timeline\"><div>● 08-01 立项</div><div class=\"on\">● 08-05 推进中</div><div>○ 08-30 计划完成</div></div>" },
+    { "cn": "统计数值", "en": "Statistic", "def": "高亮展示关键指标数字，可配涨跌与副文案。", "demo": "<div class=\"demo-stat\"><b>128</b><span>本月任务完成</span></div>" },
+    { "cn": "标签", "en": "Tag", "def": "短文本标识，表示分类、状态或属性，颜色编码。", "demo": "<span class=\"demo-tag g\">已完成</span><span class=\"demo-tag y\">进行中</span><span class=\"demo-tag r\">已超期</span>" },
+    { "cn": "树形控件", "en": "Tree", "def": "层级数据浏览控件，支持展开/折叠、选中、拖拽。", "demo": "<div class=\"demo-tree\"><div>▾ 办公室 <div style=\"padding-left:16px\">▸ 综合科<br/>▸ 文书科</div></div></div>" },
+    { "cn": "仪表盘", "en": "Gauge", "def": "以圆弧仪表形式展示指标达标情况。", "demo": "<div class=\"demo-gauge\">⌛ 78%</div>" },
+    { "cn": "列表", "en": "List", "def": "纵向排列的同构条目集合，支持分页或滚动加载更多。", "demo": "<ul class=\"demo-list\"><li>任务：周报</li><li>任务：会议纪要</li></ul>" },
+    { "cn": "描述列表", "en": "Descriptions", "def": "以标签-值成对形式展示只读信息，比表格更轻量。", "demo": "<div class=\"demo-desc\"><span>名称：任务A</span><span>状态：进行中</span><span>负责人：张三</span></div>" }
+  ]
+}
