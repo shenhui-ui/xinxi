@@ -5,7 +5,7 @@ function parseSseLine(line) {
   if (payload === '[DONE]') return { done: true }
   try {
     const obj = JSON.parse(payload)
-    const delta = obj.delta || obj.choices?.[0]?.delta?.content || obj.choices?.[0]?.message?.content || ''
+    const delta = typeof obj.delta === 'string' ? obj.delta : obj.choices?.[0]?.delta?.content || obj.choices?.[0]?.message?.content || ''
     return { delta }
   } catch (e) {
     return null
@@ -30,6 +30,7 @@ function createProvider(config) {
     const decoder = new TextDecoder()
     let buffer = ''
     let firstTokenAt = Date.now()
+    let firstTokenSeen = false
     while (true) {
       const { done, value } = await reader.read()
       if (done) break
@@ -42,11 +43,15 @@ function createProvider(config) {
         if (!parsed) continue
         if (parsed.done) return
         if (parsed.delta) {
-          if (Date.now() - firstTokenAt > 60000) throw new Error('上游响应超时（首 token 60s）')
+          if (!firstTokenSeen) {
+            firstTokenSeen = true
+            if (Date.now() - firstTokenAt > 60000) throw new Error('上游响应超时（首 token 60s）')
+          }
           onChunk(parsed.delta)
         }
       }
     }
+    if (!firstTokenSeen && Date.now() - firstTokenAt > 60000) throw new Error('上游响应超时（首 token 60s）')
   }
 
   async function testConnection({ baseUrl, apiKey, model }) {

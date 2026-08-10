@@ -31,3 +31,31 @@ test('真实 provider 错误脱敏（连接失败只含基本信息）', async (
     assert.ok(!e.message.includes('sk-abc'), '错误信息不得含 apiKey')
   }
 })
+
+test('chatStream 正常流式不误杀（mock fetch）', async () => {
+  const origFetch = global.fetch
+  const chunks = []
+  global.fetch = async () => ({
+    ok: true,
+    body: new ReadableStream({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('data: {"delta":"你"}\n\n'))
+        controller.enqueue(new TextEncoder().encode('data: [DONE]\n\n'))
+        controller.close()
+      },
+    }),
+  })
+  try {
+    const p = createProvider({ baseUrl: 'http://fake/v1', apiKey: 'k', model: 'm' })
+    await p.chatStream({ messages: [], onChunk: (d) => chunks.push(d) })
+    assert.deepEqual(chunks, ['你'])
+  } finally {
+    global.fetch = origFetch
+  }
+})
+
+test('obj.delta 为对象时不污染输出', async () => {
+  const { parseSseLine } = await import('../server/ai/provider.js')
+  assert.deepEqual(parseSseLine('data: {"delta":{"content":"x"}}'), { delta: '' })
+  assert.deepEqual(parseSseLine('data: {"delta":"你"}'), { delta: '你' })
+})
