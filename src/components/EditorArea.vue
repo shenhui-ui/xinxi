@@ -187,8 +187,8 @@ function getSelectionText() {
 
 function setContent(html) {
   flushInput()
+  undoStack.reset({ html, cursor: 0 })
   editorRef.value.innerHTML = html
-  undoStack.push({ html: editorRef.value.innerHTML, cursor: getCursor() }, { force: true })
   syncUndoState()
 }
 

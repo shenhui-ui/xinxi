@@ -12,9 +12,13 @@ function parseSseLine(line) {
   }
 }
 
+function normalizeBaseUrl(baseUrl) {
+  return (baseUrl || '').replace(/\/+$/, '').replace(/\/v1$/, '')
+}
+
 function createProvider(config) {
   async function chatStream({ messages, signal, onChunk }) {
-    const baseUrl = config.baseUrl.replace(/\/$/, '')
+    const baseUrl = normalizeBaseUrl(config.baseUrl)
     const timeoutSignal = AbortSignal.timeout(120000)
     const combined = signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal
     const res = await fetch(`${baseUrl}/v1/chat/completions`, {
@@ -56,7 +60,7 @@ function createProvider(config) {
 
   async function testConnection({ baseUrl, apiKey, model }) {
     const t0 = Date.now()
-    const res = await fetch(`${baseUrl.replace(/\/$/, '')}/v1/models`, {
+    const res = await fetch(`${normalizeBaseUrl(baseUrl)}/v1/models`, {
       headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {},
       signal: AbortSignal.timeout(15000),
     })

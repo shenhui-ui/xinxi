@@ -59,3 +59,27 @@ test('obj.delta 为对象时不污染输出', async () => {
   assert.deepEqual(parseSseLine('data: {"delta":{"content":"x"}}'), { delta: '' })
   assert.deepEqual(parseSseLine('data: {"delta":"你"}'), { delta: '你' })
 })
+
+test('baseUrl 带 /v1 或尾斜杠时请求路径不重复拼接', async () => {
+  const origFetch = global.fetch
+  const urls = []
+  global.fetch = async (url) => {
+    urls.push(url)
+    return { ok: true, body: new ReadableStream({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('data: [DONE]\n\n'))
+        controller.close()
+      },
+    }) }
+  }
+  try {
+    const p = createProvider({ baseUrl: 'https://api.deepseek.com/v1/', apiKey: 'k', model: 'm' })
+    await p.chatStream({ messages: [], onChunk: () => {} })
+    assert.deepEqual(urls, ['https://api.deepseek.com/v1/chat/completions'])
+    const p2 = createProvider({ baseUrl: 'https://api.deepseek.com', apiKey: 'k', model: 'm' })
+    await p2.chatStream({ messages: [], onChunk: () => {} })
+    assert.deepEqual(urls[1], 'https://api.deepseek.com/v1/chat/completions')
+  } finally {
+    global.fetch = origFetch
+  }
+})

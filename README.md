@@ -106,9 +106,9 @@ tar czf wenxi-backup-$(date +%F).tar.gz data/
 
 ## 后续里程碑（未实现）
 
-- 公文写作/润色/对话前端页面（`/api/ai/chat`、`/api/ai/write`、`/api/ai/polish` 后端已就绪，导航"公文写作"为占位页）
+- 公文写作工作台（`/api/ai/chat`、`/api/ai/write`、`/api/ai/polish`）与"AI 配置"页面（`/settings`）已实现：三栏写作、SSE 流式、撤销/重做、草稿恢复、模型配置/掩码/测试连接
 - M5：Word/Excel 导出、Glossary 术语库、定时清理任务
-- 导航中的"UI 术语""AI 配置"页面当前为占位，待后续里程碑实现。
+- 导航中的"UI 术语"页面仍为占位，待后续里程碑实现。
 
 ## 目录结构
 
@@ -120,7 +120,7 @@ tar czf wenxi-backup-$(date +%F).tar.gz data/
 │   ├── db/crud.js          # 通用 CRUD 构造器（乐观锁/软删/回收站/分页/搜索/级联）
 │   ├── routes/             # 6 台账 + 附件 + 统计路由
 │   └── utils/              # http 工具 / 附件存储 / docx 样式映射
-├── src/                    # Vue 3 前端（Dashboard / 6 视图 / 回收站 / 占位页）
+├── src/                    # Vue 3 前端（Dashboard / 6 视图 / 回收站 / 写作工作台 / AI 配置 / 术语占位页）
 ├── shared/blocks.json      # data-block 区块枚举单一事实源（9 类，前后端样式映射基准）
 ├── scripts/seed.js         # 造数脚本（默认 1 万条）
 ├── build/check-blocks.mjs  # 构建期校验

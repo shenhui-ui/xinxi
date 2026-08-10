@@ -25,10 +25,17 @@ export function createUndoStack(limit = 50) {
     return s
   }
 
+  function reset(initialSnapshot) {
+    stack.length = 0
+    redoStack = []
+    if (initialSnapshot) stack.push(initialSnapshot)
+  }
+
   return {
     push,
     undo,
     redo,
+    reset,
     get canUndo() { return stack.length >= 2 },
     get canRedo() { return redoStack.length > 0 },
     get stack() { return stack },

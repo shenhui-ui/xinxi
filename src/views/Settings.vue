@@ -28,7 +28,7 @@
     <el-dialog v-model="dialogVisible" :title="editing ? '编辑配置' : '新增配置'">
       <el-form label-width="90px">
         <el-form-item label="名称"><el-input v-model="form.name" /></el-form-item>
-        <el-form-item label="API 地址"><el-input v-model="form.baseUrl" placeholder="https://api.deepseek.com/v1" /></el-form-item>
+        <el-form-item label="API 地址"><el-input v-model="form.baseUrl" placeholder="https://api.deepseek.com" /></el-form-item>
         <el-form-item label="模型名称"><el-input v-model="form.modelName" /></el-form-item>
         <el-form-item label="API Key">
           <el-input v-model="form.apiKey" type="password" show-password :placeholder="editing ? '留空保留原 Key' : ''" />

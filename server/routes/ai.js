@@ -5,15 +5,27 @@ const { getProvider, SSE_HEADERS } = require('../ai')
 const { buildSystemPrompt, SKILL_MAP } = require('../skills')
 const { aggregateWeekly } = require('../ai/aggregate')
 
-function sseWrite(res, provider, params) {
+function sseWrite(req, res, provider, params) {
+  const controller = new AbortController()
+  res.on('close', () => { if (!res.writableEnded) controller.abort() })
+  res.on('error', () => {})
+  const safeWrite = (chunk) => { try { res.write(chunk) } catch (e) { /* 客户端已断开 */ } }
+  const onChunk = (d) => {
+    if (controller.signal.aborted) return
+    try { params.onChunk(d) } catch (e) { /* 客户端已断开 */ }
+  }
   res.writeHead(200, SSE_HEADERS)
-  provider.chatStream(params).then(() => {
-    res.write('data: [DONE]\n\n')
-    res.end()
-  }).catch((e) => {
-    res.write(`event: error\ndata: ${JSON.stringify({ message: '生成失败，请重试' })}\n\n`)
-    res.end()
-  })
+  provider.chatStream({ ...params, onChunk, signal: controller.signal })
+    .then(() => {
+      if (controller.signal.aborted) return
+      safeWrite('data: [DONE]\n\n')
+      res.end()
+    })
+    .catch((e) => {
+      if (controller.signal.aborted) return
+      safeWrite(`event: error\ndata: ${JSON.stringify({ message: '生成失败，请重试' })}\n\n`)
+      res.end()
+    })
 }
 
 function getActiveOrModel(db, modelId) {
@@ -41,7 +53,7 @@ module.exports = function aiRouter(db) {
     const messages = Array.isArray(body.messages) ? body.messages : []
     if (!messages.length) return fail(res, 40001, 'messages 不能为空')
     const provider = getProvider(cfg)
-    sseWrite(res, provider, { messages, onChunk: (d) => res.write(`data: ${JSON.stringify({ delta: d })}\n\n`) })
+    sseWrite(req, res, provider, { messages, onChunk: (d) => res.write(`data: ${JSON.stringify({ delta: d })}\n\n`) })
   })
 
   router.post('/write', (req, res) => {
@@ -89,7 +101,7 @@ module.exports = function aiRouter(db) {
 
     const systemPrompt = buildSystemPrompt(scenario, { materials })
     const provider = getProvider(cfg)
-    sseWrite(res, provider, {
+    sseWrite(req, res, provider, {
       messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userContent }],
       onChunk: (d) => res.write(`data: ${JSON.stringify({ delta: d })}\n\n`),
     })
@@ -105,7 +117,7 @@ module.exports = function aiRouter(db) {
     const mode = ['polish', 'rewrite', 'style'].includes(body.mode) ? body.mode : 'polish'
     const modeDesc = { polish: '润色：优化措辞、消除病句，保持长度与原意', rewrite: '改写：风格化重写，长度可压缩或扩展', style: '公文风格化：转为公文书面语风格' }
     const provider = getProvider(cfg)
-    sseWrite(res, provider, {
+    sseWrite(req, res, provider, {
       messages: [
         { role: 'system', content: `你是机关公文写作助手。${modeDesc[mode]}。只输出结果文本，不加解释。` },
         { role: 'user', content: text },
