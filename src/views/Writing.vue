@@ -4,6 +4,8 @@
       <div class="doc-actions">
         <el-button type="primary" size="small" style="width:100%" @click="newDoc">新建文档</el-button>
         <el-button size="small" style="width:100%; margin-top:8px" @click="saveDoc" :loading="saving">保存</el-button>
+        <el-button size="small" type="success" style="width:100%; margin-top:8px" :loading="exporting" @click="openExportDialog">导出 Word</el-button>
+        <el-button size="small" style="width:100%; margin-top:8px" @click="showHistory = !showHistory">导出历史</el-button>
         <el-button size="small" type="danger" plain style="width:100%; margin-top:8px" @click="deleteDoc">删除</el-button>
       </div>
       <div class="scenario-nav">
@@ -22,6 +24,13 @@
         <div v-for="d in filteredDocs" :key="d.id" class="doc-item" :class="{ active: currentDoc?.id === d.id }" @click="openDoc(d)">
           <div>{{ d.title }}</div>
           <el-tag size="small" :type="d.status === 'exported' ? 'success' : 'info'">{{ d.status }}</el-tag>
+        </div>
+      </div>
+      <div v-if="showHistory" class="export-history">
+        <div class="doc-list-title">导出历史</div>
+        <div v-for="h in historyList" :key="h.id" class="doc-item">
+          <div>{{ h.display_name }}</div>
+          <el-button size="small" type="primary" link :disabled="h.status !== 'done'" @click="downloadExport(h)">下载</el-button>
         </div>
       </div>
     </aside>
@@ -56,6 +65,26 @@
         @tab-change="onAiTabChange"
       />
     </aside>
+    <el-dialog v-model="exportDialog" title="导出 Word" width="420px">
+      <el-form label-width="90px">
+        <el-form-item label="格式">
+          <el-radio-group v-model="exportForm.format">
+            <el-radio-button label="gbt">GB/T 9704-2012</el-radio-button>
+            <el-radio-button label="internal">内部材料</el-radio-button>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item v-if="exportForm.format === 'gbt'" label="发文字号">
+          <el-input v-model="exportForm.docNo" placeholder="如 ×局〔2026〕12号" />
+        </el-form-item>
+        <el-form-item label="强制显示版记">
+          <el-switch v-model="exportForm.forceBanji" :disabled="exportForm.format === 'gbt'" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="exportDialog = false">取消</el-button>
+        <el-button type="primary" :loading="exporting" @click="doExport">导出</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -85,6 +114,11 @@ const docs = ref([])
 const docKeyword = ref('')
 const saving = ref(false)
 const unsaved = ref(false)
+const exportDialog = ref(false)
+const exporting = ref(false)
+const showHistory = ref(false)
+const historyList = ref([])
+const exportForm = ref({ format: 'internal', docNo: '', forceBanji: false })
 const showDraftTip = ref(false)
 const draftTipTime = ref('')
 const activeScenario = ref('weekly')
@@ -149,6 +183,50 @@ async function openDoc(d) {
   editorRef.value?.setUnsaved(false)
   sessionStorage.setItem(LAST_OPEN_KEY, r.id)
   unsaved.value = false
+}
+
+function openExportDialog() {
+  exportForm.value = { format: 'internal', docNo: '', forceBanji: false }
+  exportDialog.value = true
+}
+
+async function doExport() {
+  if (!currentDoc.value) return
+  exporting.value = true
+  try {
+    const body = {
+      format: exportForm.value.format,
+      forceBanji: exportForm.value.forceBanji,
+      contentHtml: currentDoc.value.content_html,
+      title: currentDoc.value.title || '未命名公文',
+      docNo: exportForm.value.docNo,
+    }
+    if (currentDoc.value.id) {
+      body.writingId = currentDoc.value.id
+      body.targetVersion = currentDoc.value.version
+    }
+    const r = await http.post('/export/word', body)
+    exportDialog.value = false
+    ElMessage.success('导出成功')
+    window.open(`/api/export/download/${r.fileId}`)
+    if (currentDoc.value.id) {
+      const fresh = await http.get(`/writings/${currentDoc.value.id}`)
+      currentDoc.value = fresh
+    }
+    loadHistory()
+  } catch (e) {
+    if (e?.code === 40003) ElMessage.warning('GB/T 格式需填写发文字号')
+    else if (e?.code === 409) ElMessage.warning('文档已被修改，请重新载入')
+  } finally { exporting.value = false }
+}
+
+async function loadHistory() {
+  const data = await http.get('/exports', { params: { bizType: 'word', writingId: currentDoc.value?.id } })
+  historyList.value = data.list
+}
+
+function downloadExport(h) {
+  window.open(`/api/export/download/${h.file_id}`)
 }
 
 async function deleteDoc() {
@@ -254,6 +332,7 @@ onMounted(async () => {
   }
   draftInterval = setInterval(autoFlushDraft, 30000)
   window.addEventListener('beforeunload', autoFlushDraft)
+  await loadHistory()
 })
 
 onBeforeUnmount(() => {
