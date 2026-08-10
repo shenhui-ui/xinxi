@@ -27,6 +27,16 @@ function acquireLock() {
   return () => fs.rmSync(lockPath, { force: true })
 }
 
+function checkSecretWithEncryptedData(db) {
+  const { _getSecretPath } = require('./crypto')
+  if (!fs.existsSync(_getSecretPath())) {
+    const hasEnc = db.prepare('SELECT COUNT(*) c FROM ai_configs WHERE api_key_enc IS NOT NULL').get().c
+    if (hasEnc > 0) {
+      throw new Error('缺少密钥文件 data/.secret，且数据库中已有加密配置。请将备份的 .secret 文件放回 data/ 目录后重新启动（勿覆盖现有库文件）')
+    }
+  }
+}
+
 function createApp(db) {
   const app = express()
   app.use(express.json({ limit: '10mb' }))
@@ -55,6 +65,7 @@ function createApp(db) {
 function start() {
   const release = acquireLock()
   const db = initDb()
+  checkSecretWithEncryptedData(db)
   const app = createApp(db)
   const server = app.listen(config.port, () => {
     console.log(`[WenXi] 端口 ${config.port} 启动成功`)
@@ -75,4 +86,4 @@ function start() {
 }
 
 if (require.main === module) start()
-module.exports = { createApp, start, acquireLock }
+module.exports = { createApp, start, acquireLock, checkSecretWithEncryptedData }

@@ -11,5 +11,8 @@ module.exports = function routes(db) {
   router.use('/seals', require('./seals')(db))
   router.use('/supplies', require('./supplies')(db))
   router.use('/stats', require('./stats')(db))
+  const aiConfigs = require('./ai-configs')
+  router.use('/ai/configs', aiConfigs(db))
+  router.use('/ai/test', aiConfigs.makeTestRouter(db))
   return router
 }
