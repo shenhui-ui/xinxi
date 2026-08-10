@@ -3,6 +3,7 @@ const path = require('node:path')
 const fs = require('node:fs')
 const config = require('./config')
 const { initDb } = require('./db')
+const { startJobs, stopJobs } = require('./jobs')
 
 function isProcessAlive(pid) {
   try {
@@ -65,6 +66,7 @@ function createApp(db) {
 function start() {
   const release = acquireLock()
   const db = initDb()
+  const jobs = startJobs(db)
   checkSecretWithEncryptedData(db)
   const app = createApp(db)
   const server = app.listen(config.port, () => {
@@ -80,7 +82,7 @@ function start() {
     }
     throw err
   })
-  const shutdown = () => { server.close(); db.close(); release(); process.exit(0) }
+  const shutdown = () => { stopJobs(jobs); server.close(); db.close(); release(); process.exit(0) }
   process.on('SIGINT', shutdown)
   process.on('SIGTERM', shutdown)
 }
