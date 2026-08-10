@@ -7,7 +7,8 @@
     "start": "node server/index.js",
     "test": "node --test test/",
     "build": "node build/check-blocks.mjs && vite build",
-    "seed": "node scripts/seed.js"
+    "seed": "node scripts/seed.js",
+    "bench": "node scripts/bench.js"
   },
   "dependencies": {
     "better-sqlite3": "^11.3.0",
