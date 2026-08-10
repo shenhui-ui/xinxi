@@ -42,7 +42,7 @@ module.exports = function aiConfigsRouter(db) {
       : null
     if (body.id && !existing) return err40401(res, body.id)
     if (body.isActive) {
-      db.prepare('UPDATE ai_configs SET is_active = 0, updated_at = ?, version = version + 1 WHERE deleted_at IS NULL').run(now)
+      db.prepare('UPDATE ai_configs SET is_active = 0, updated_at = ? WHERE deleted_at IS NULL AND id != ?').run(now, body.id || '')
     }
     if (existing) {
       const version = parseInt(body.version, 10)

@@ -100,6 +100,22 @@ test('test 接口：密文无法解密返回 40001', async () => {
   assert.equal(r.body.code, 40001)
 })
 
+test('更新 active 配置自身不冲突且保持 active', async () => {
+  const a = await call('POST', '/api/ai/configs', { name: 'A', baseUrl: 'u1', apiKey: 'sk-aaaa', modelName: 'm', isActive: true })
+  await call('POST', '/api/ai/configs', { name: 'B', baseUrl: 'u2', apiKey: 'sk-bbbb', modelName: 'm2', isActive: true })
+  const up = await call('POST', '/api/ai/configs', { id: a.body.data.id, name: 'A2', baseUrl: 'u1x', apiKey: '', modelName: 'm', isActive: true, version: 1 })
+  assert.equal(up.statusCode, 200)
+  const active = await call('GET', '/api/ai/configs/active')
+  assert.equal(active.body.data.id, a.body.data.id)
+})
+
+test('创建新 active 配置时旧配置被清除', async () => {
+  await call('POST', '/api/ai/configs', { name: 'A', baseUrl: 'u', apiKey: 'sk-a', modelName: 'm', isActive: true })
+  await call('POST', '/api/ai/configs', { name: 'B', baseUrl: 'u', apiKey: 'sk-b', modelName: 'm', isActive: true })
+  const active = await call('GET', '/api/ai/configs/active')
+  assert.equal(active.body.data.name, 'B')
+})
+
 test('maskKey 边界', () => {
   assert.equal(maskKey('sk-abcdef123456'), 'sk-****3456')
   assert.equal(maskKey('short'), '****')
