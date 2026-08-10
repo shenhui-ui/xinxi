@@ -128,3 +128,25 @@ test('weekly 聚合 200 条截断并注明', async () => {
   assert.ok(out.includes('另有 50 条未列出') || out.includes('未列出'))
   assert.ok(!out.includes('批量任务249'), '超限记录不注入')
 })
+
+test('4 场景 fake 端到端（write×3 + polish）', async () => {
+  const weekly = await call('POST', '/api/ai/write', { scenario: 'weekly', dateFrom: '2026-08-01', dateTo: '2026-08-07' })
+  assert.ok(weekly.text.includes('生成'))
+  const report = await call('POST', '/api/ai/write', { scenario: 'report', extraNotes: '背景补充' })
+  assert.ok(report.text.includes('生成'))
+  const draft = await call('POST', '/api/ai/write', { scenario: 'draft', genre: '通知', subject: '关于召开会议的通知', keyPoints: ['时间', '地点'] })
+  assert.ok(draft.text.includes('生成'))
+  const polish = await call('POST', '/api/ai/polish', { text: '内容。', mode: 'style' })
+  assert.ok(polish.text.includes('生成'))
+})
+
+test('system prompt 含 SKILL 内容（拦截 provider 调用参数断言）', async () => {
+  let captured = null
+  setProviderFactory(() => ({
+    chatStream: async ({ messages }) => { captured = messages },
+    testConnection: async () => ({ ok: true, latencyMs: 1 }),
+  }))
+  await call('POST', '/api/ai/write', { scenario: 'weekly', dateFrom: '2026-08-01', dateTo: '2026-08-07' })
+  assert.ok(captured[0].content.includes('按·拿·推'), 'system prompt 应含 gongwen SKILL')
+  assert.ok(captured[0].content.includes('周报'), 'system prompt 应含场景模板')
+})
