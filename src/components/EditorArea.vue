@@ -186,7 +186,10 @@ function getSelectionText() {
 }
 
 function setContent(html) {
+  flushInput()
   editorRef.value.innerHTML = html
+  undoStack.push({ html: editorRef.value.innerHTML, cursor: getCursor() }, { force: true })
+  syncUndoState()
 }
 
 function setUnsaved(v) {
@@ -201,7 +204,10 @@ function onBeforeUnload(e) {
 }
 
 onMounted(() => {
-  if (props.modelValue) editorRef.value.innerHTML = props.modelValue
+  if (props.modelValue) {
+    editorRef.value.innerHTML = props.modelValue
+    undoStack.push({ html: editorRef.value.innerHTML, cursor: getCursor() }, { force: true })
+  }
   window.addEventListener('beforeunload', onBeforeUnload)
 })
 onBeforeUnmount(() => window.removeEventListener('beforeunload', onBeforeUnload))

@@ -65,6 +65,7 @@ import { onBeforeRouteLeave } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import EditorArea from '../components/EditorArea.vue'
 import AiPanel from '../components/AiPanel.vue'
+import { isEditorEmpty } from '../utils/paste-clean'
 import { http } from '../api'
 
 const DRAFT_KEY = 'wenxi-draft-current'
@@ -240,7 +241,6 @@ onMounted(async () => {
       draftMeta = JSON.parse(raw)
       const mins = Math.round((Date.now() - draftMeta.ts) / 60000)
       draftTipTime.value = `${mins} 分钟前`
-      showDraftTip.value = true
     } catch (e) { /* 忽略损坏草稿 */ }
   }
   const lastId = sessionStorage.getItem(LAST_OPEN_KEY)
@@ -248,6 +248,9 @@ onMounted(async () => {
     await openDoc(docs.value.find((d) => d.id === lastId))
   } else {
     newDoc()
+  }
+  if (draftMeta && isEditorEmpty(currentDoc.value?.content_html || '')) {
+    showDraftTip.value = true
   }
   draftInterval = setInterval(autoFlushDraft, 30000)
   window.addEventListener('beforeunload', autoFlushDraft)
