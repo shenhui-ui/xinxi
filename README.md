@@ -1,6 +1,6 @@
 # 文玺（WenXi）— 单位台账管理系统
 
-面向机关单位日常办公的本地台账管理系统：任务、会议、文件收发、外出活动、用章、物资六大台账 + 附件管理、统计驾驶舱、AI 公文写作（周报/专项汇报/公文起草/润色），数据全部保存在本机。当前版本为 **M1-M4 里程碑**（7 个台账模块 + 统计 + 附件 + 回收站 + Dashboard + AI 配置 + 写作工作台），公文导出、UI 术语手册等功能在后续里程碑中提供。
+面向机关单位日常办公的本地台账管理系统：任务、会议、文件收发、外出活动、用章、物资六大台账 + 附件管理、统计驾驶舱、AI 公文写作（周报/专项汇报/公文起草/润色）、公文 Word / 台账 Excel 导出、UI 术语手册，数据全部保存在本机。当前版本为 **M5-M6 里程碑**（7 个台账模块 + 统计 + 附件 + 回收站 + Dashboard + AI 配置 + 写作工作台 + 公文/台账导出 + UI 术语手册 + 定时清理任务）。
 
 ## 功能
 
@@ -15,6 +15,8 @@
 | 📊 **统计驾驶舱** | 月度各台账新增统计（monthly）+ 近 12 月趋势（trend），点击图表跳转对应台账 |
 | 🗑 **回收站** | 软删数据统一查看、恢复或永久删除 |
 | 📎 **附件管理** | 任意台账记录关联附件：上传（≤20MB）/下载/软删，uuid 重命名存储、防路径遍历 |
+| 📤 **公文导出** | 写作工作台内公文 Word 导出（docx 映射/文号校验/版记规则）、台账 Excel 导出（同步/异步双分支）、导出历史与过期清理（1 小时），writings 导出联动（exported_at/status/forceBanji） |
+| 📖 **UI 术语手册** | 60 术语 6 分类交互速查：分类 Tab + 卡片网格 + 点击展开定义 + 迷你交互示例 + 深浅主题切换 |
 
 通用能力：乐观锁（version 冲突返回 409）、软删除（`deleted_at`）、分页、keyword 搜索、级联清理（删除物资时同时清理其流水），全部由通用 CRUD 构造器 `server/db/crud.js` 统一提供。
 
@@ -104,11 +106,16 @@ tar czf wenxi-backup-$(date +%F).tar.gz data/
 | `POST /api/ai/write` | AI 写作（SSE 流式，`{scenario: weekly\|report\|draft, modelId?}`；weekly 自动聚合台账素材（200 条上限并注明）；report 校验 bizRefs 每类 ≤50 条、空且无 extraNotes 拒绝；draft 校验 genre+subject+keyPoints 与 pasteText 二选一） |
 | `POST /api/ai/polish` | AI 润色（SSE 流式，`{text, mode: polish\|rewrite\|style, modelId?}`；text ≤20000 字符；mode 缺省 polish） |
 
+## 已实现里程碑
+
+- **M4**：AI 公文写作工作台（三栏写作、SSE 流式、撤销/重做、草稿恢复）与"AI 配置"页面（模型配置/掩码/测试连接）
+- **M5**：公文 Word 导出（docx 映射/文号校验/版记规则）、台账 Excel 导出（同步/异步双分支）、导出历史与过期清理（附件 7 天/导出 1 小时）、Glossary 术语手册页
+- **M6**：writings 导出联动（exported_at/status/forceBanji/文号校验）、导出清理统一 now → toIso 格式
+
 ## 后续里程碑（未实现）
 
-- 公文写作工作台（`/api/ai/chat`、`/api/ai/write`、`/api/ai/polish`）与"AI 配置"页面（`/settings`）已实现：三栏写作、SSE 流式、撤销/重做、草稿恢复、模型配置/掩码/测试连接
-- M5：Word/Excel 导出、Glossary 术语库、定时清理任务
-- 导航中的"UI 术语"页面仍为占位，待后续里程碑实现。
+- M6 收尾打磨、性能基准
+- 其余规划见 `docs/superpowers/plans/` 与 `docs/superpowers/specs/`
 
 ## 目录结构
 
@@ -120,7 +127,7 @@ tar czf wenxi-backup-$(date +%F).tar.gz data/
 │   ├── db/crud.js          # 通用 CRUD 构造器（乐观锁/软删/回收站/分页/搜索/级联）
 │   ├── routes/             # 6 台账 + 附件 + 统计路由
 │   └── utils/              # http 工具 / 附件存储 / docx 样式映射
-├── src/                    # Vue 3 前端（Dashboard / 6 视图 / 回收站 / 写作工作台 / AI 配置 / 术语占位页）
+├── src/                    # Vue 3 前端（Dashboard / 6 视图 / 回收站 / 写作工作台 / AI 配置 / Glossary）
 ├── shared/blocks.json      # data-block 区块枚举单一事实源（9 类，前后端样式映射基准）
 ├── scripts/seed.js         # 造数脚本（默认 1 万条）
 ├── build/check-blocks.mjs  # 构建期校验
