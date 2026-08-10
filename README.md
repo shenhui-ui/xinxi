@@ -95,6 +95,7 @@ tar czf wenxi-backup-$(date +%F).tar.gz data/
 | `GET /api/health` | 健康检查（版本/schemaVersion/uptime/dbOk） |
 | `/api/tasks` `/api/meetings` `/api/documents` `/api/activities` `/api/seals` `/api/supplies` | 6 台账 REST CRUD（列表含分页/keyword 搜索；`?deleted=1` 查回收站；`POST /:id/restore` 恢复；`DELETE` 永久删；PUT 带 `version` 乐观锁） |
 | `/api/supplies/:id/transactions` | 物资库存流水（入库/出库/领用，事务更新余额） |
+| `/api/writings` | 文档写作 CRUD（title 搜索；`?deleted=1` 查回收站；`POST /:id/restore` 恢复；PUT 带 `version` 乐观锁；`exported_at` 由导出任务写入） |
 | `/api/attachments` | 附件上传/列表/软删，`GET /:id/download` 下载 |
 | `/api/stats/monthly` `/api/stats/trend` | 统计接口（`deleted_at` 已过滤） |
 | `GET/POST /api/ai/configs` `GET /api/ai/configs/active` `DELETE /api/ai/configs/:id` | AI 配置增改查删（api_key 明文入参→AES 加密存储，列表/查询仅回掩码；POST 带 id+version 乐观锁更新，apiKey 为空保留原密文；isActive 置位清除其他 active） |
