@@ -4,6 +4,14 @@
 
 面向机关单位日常办公的本地台账管理系统：任务、会议、文件收发、外出活动、用章、物资六大台账 + 附件管理、统计驾驶舱、AI 公文写作（周报/专项汇报/公文起草/润色）、公文 Word / 台账 Excel 导出、UI 术语手册，数据全部保存在本机。当前版本为 **M5-M6 里程碑**（7 个台账模块 + 统计 + 附件 + 回收站 + Dashboard + AI 配置 + 写作工作台 + 公文/台账导出 + UI 术语手册 + 定时清理任务）。
 
+## 界面预览
+
+| 统计驾驶舱 | 任务管理台账 |
+| :---: | :---: |
+| ![统计驾驶舱](docs/assets/screenshots/dashboard.png) | ![任务管理台账](docs/assets/screenshots/tasks.png) |
+| **三栏 AI 公文写作台** | **UI 术语速查手册** |
+| ![公文写作工作台](docs/assets/screenshots/writing.png) | ![UI 术语速查手册](docs/assets/screenshots/glossary.png) |
+
 ## 功能
 
 | 模块 | 能力 |
