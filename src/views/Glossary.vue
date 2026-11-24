@@ -24,11 +24,11 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, shallowRef, computed } from 'vue'
 import glossary from '../data/glossary.json'
 
 const activeCat = ref('navigation')
-const openItem = ref(null)
+const openItem = shallowRef(null)
 const dark = ref(false)
 const catNames = { navigation: '导航', form: '表单', button: '按钮', feedback: '反馈', layout: '布局', dataDisplay: '数据展示' }
 const total = computed(() => Object.values(glossary).reduce((n, a) => n + a.length, 0))
