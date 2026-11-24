@@ -59,6 +59,24 @@ npm run build && npm start
 
 > **注意**：`npm run dev` 只启动后端 API（无前端 dev server 代理），请用 `npm run build && npm start` 预览完整功能（express 直接托管 `dist/`，附件上传/下载才能工作）。
 
+### Docker Compose 一键私有化部署（推荐，含 Nginx 反代与 SSE 流式调优）
+
+```bash
+# 1. 构建并后台启动（文玺 Node 服务 + Nginx 1.27 反向代理，默认端口 8080）
+docker compose up -d --build --wait
+
+# 2. 浏览器打开
+#    http://localhost:8080/
+```
+
+- **数据持久化**：SQLite 数据库、`attachments/` 附件与 `.secret` 密钥均持久化在独立命名卷 `wenxi_data:/data` 中；容器采用 `tini` 守护并自愈非正常重启后的 `.instance.lock`。
+- **Nginx 反代调优**：[`deploy/nginx.conf`](deploy/nginx.conf) 放开 25MB 上传体限制（适配 20MB 附件），并对 `/api/ai/` 关闭响应缓冲（`proxy_buffering off`），确保 AI 公文写作 SSE 流式打字无延迟。
+- **备份与恢复**：
+  ```bash
+  bash scripts/backup.sh                          # 自动停库刷盘打包到 ./backups/ 并生成 SHA256
+  bash scripts/restore.sh backups/<archive>.tar.gz # 校验 SHA256 后还原至 wenxi_data 卷
+  ```
+
 运行测试：
 
 ```bash
@@ -174,9 +192,12 @@ sudo systemctl daemon-reload && sudo systemctl enable --now wenxi
 │   └── utils/              # http 工具 / 附件存储 / docx 样式映射
 ├── src/                    # Vue 3 前端（Dashboard / 6 视图 / 回收站 / 写作工作台 / AI 配置 / Glossary）
 ├── shared/blocks.json      # data-block 区块枚举单一事实源（9 类，前后端样式映射基准）
-├── scripts/seed.js         # 造数脚本（默认 1 万条）
 ├── build/check-blocks.mjs  # 构建期校验
 ├── docs/                   # 设计规格 / 性能基准（perf.md）/ 验收清单（acceptance.md）/ 里程碑计划
+├── deploy/nginx.conf       # Nginx 反向代理（25MB 上传 + /api/ai/ SSE 无缓冲透传）
+├── Dockerfile              # 多阶段容器镜像（node:20-bookworm-slim + tini + HEALTHCHECK）
+├── docker-compose.yml      # 文玺 + Nginx 一键私有化编排与独立命名卷
+├── scripts/                # seed 造数 / bench 压测 / Docker 数据卷 backup.sh & restore.sh
 └── data/                   # 运行时数据（gitignore：wenxi.db / attachments/ / .secret）
 ```
 

@@ -24,10 +24,80 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # node --test test/（Node 内置测试运行器，18 个测试文件，自建临时库、注入 fakeProvider，联网）
-      - name: Run tests
+      # node --test test/（18 个后端测试文件）
+      - name: Run backend tests
         run: npm test
+
+      # vitest（8 个前端组件测试文件）
+      - name: Run frontend tests
+        run: npx vitest run
 
       # check-blocks.mjs（前后端区块映射静态校验）+ vite build
       - name: Build
         run: npm run build
+
+  docker-e2e:
+    name: Docker Compose E2E
+    runs-on: ubuntu-latest
+    needs: test-and-build
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Lint ops scripts
+        run: bash -n scripts/backup.sh scripts/restore.sh
+
+      - name: Build and start Docker Compose stack
+        run: docker compose up -d --build --wait
+
+      - name: Verify health, SPA, persistence, crash recovery, and backup/restore
+        run: |
+          set -euo pipefail
+
+          wait_healthy() {
+            for i in $(seq 1 30); do
+              if curl -fsS http://127.0.0.1:8080/api/health >/dev/null 2>&1; then
+                return 0
+              fi
+              sleep 1
+            done
+            echo "Timed out waiting for http://127.0.0.1:8080/api/health"
+            docker compose logs
+            return 1
+          }
+
+          # 1. 首页与健康检查经 Nginx 正常响应
+          curl -fsS http://127.0.0.1:8080/ >/dev/null
+          curl -fsS http://127.0.0.1:8080/api/health | grep -q '"dbOk":true'
+
+          # 2. 创建台账记录并备份
+          CREATED=$(curl -fsS -X POST http://127.0.0.1:8080/api/tasks \
+            -H 'Content-Type: application/json' \
+            -d '{"title":"docker-e2e-persistence-check","status":"进行中"}')
+          echo "$CREATED" | grep -q '"code":0'
+          TASK_ID=$(node -e "const d=JSON.parse(process.argv[1]); console.log(d.data.id);" "$CREATED")
+
+          bash scripts/backup.sh ./backups
+          wait_healthy
+
+          # 3. 模拟断电/强杀（PID 复用下验证 .instance.lock 自愈与卷持久化）
+          docker compose kill wenxi
+          docker compose start wenxi
+          wait_healthy
+
+          curl -fsS "http://127.0.0.1:8080/api/tasks?keyword=docker-e2e-persistence-check" | grep -q 'docker-e2e-persistence-check'
+
+          # 4. 物理删除记录后通过 restore.sh 一键恢复并验证数据找回
+          curl -fsS -X DELETE "http://127.0.0.1:8080/api/tasks/${TASK_ID}/permanent" >/dev/null
+          BACKUP_FILE=$(ls -1t ./backups/wenxi-backup-*.tar.gz | head -n1)
+          bash scripts/restore.sh "$BACKUP_FILE" --yes
+          wait_healthy
+
+          curl -fsS "http://127.0.0.1:8080/api/tasks?keyword=docker-e2e-persistence-check" | grep -q 'docker-e2e-persistence-check'
+          echo "Docker Compose E2E verified successfully."
+
+      - name: Cleanup stack and backups
+        if: always()
+        run: |
+          docker compose down -v
+          rm -rf ./backups

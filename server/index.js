@@ -14,18 +14,27 @@ function isProcessAlive(pid) {
   }
 }
 
+const activeLocks = new Set()
+
 function acquireLock() {
-  const lockPath = path.join(config.dataDir, '.instance.lock')
+  fs.mkdirSync(config.dataDir, { recursive: true })
+  const lockPath = path.resolve(config.dataDir, '.instance.lock')
   if (fs.existsSync(lockPath)) {
     const pid = Number(fs.readFileSync(lockPath, 'utf8').trim())
-    if (!Number.isInteger(pid) || pid <= 0 || !isProcessAlive(pid)) {
-      fs.rmSync(lockPath, { force: true })
-    } else {
+    const heldByCurrentProcess = pid === process.pid && activeLocks.has(lockPath)
+    const heldByOtherAliveProcess =
+      Number.isInteger(pid) && pid > 0 && pid !== process.pid && isProcessAlive(pid)
+    if (heldByCurrentProcess || heldByOtherAliveProcess) {
       throw new Error(`服务已在运行（PID ${pid}）`)
     }
+    fs.rmSync(lockPath, { force: true })
   }
   fs.writeFileSync(lockPath, String(process.pid))
-  return () => fs.rmSync(lockPath, { force: true })
+  activeLocks.add(lockPath)
+  return () => {
+    activeLocks.delete(lockPath)
+    fs.rmSync(lockPath, { force: true })
+  }
 }
 
 function checkSecretWithEncryptedData(db) {
